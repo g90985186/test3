@@ -4266,7 +4266,7 @@ async function generatePoCFromAPI(cveId) {
                 description: `Security vulnerability in ${cveId}`,
                 vulnerability_type: 'unknown',
                 affected_component: 'system',
-                model_name: 'codellama'
+                model_name: 'codellama:7b'
             })
         });
         

@@ -27,11 +27,26 @@ def get_model_manager() -> ModelManager:
             ollama_analysis = OllamaModel("gemma2", "9b")
             ollama_code = OllamaModel("codellama", "7b")
             
-            # Note: In production, you'd want to handle these async operations properly
-            # For now, we'll register them and they'll be loaded on first use
+            # FIX: Register models properly with both short and full names for compatibility
+            # Register with full names (what the chat service expects)
             _model_manager.models["llama3.1:8b"] = ollama_chat
             _model_manager.models["gemma2:9b"] = ollama_analysis
             _model_manager.models["codellama:7b"] = ollama_code
+            
+            # Also register with short names for compatibility
+            _model_manager.models["llama3.1"] = ollama_chat
+            _model_manager.models["gemma2"] = ollama_analysis
+            _model_manager.models["codellama"] = ollama_code
+            
+            # Initialize usage tracking for all registered models
+            for model_key in ["llama3.1:8b", "gemma2:9b", "codellama:7b", "llama3.1", "gemma2", "codellama"]:
+                _model_manager.model_usage[model_key] = {
+                    "total_requests": 0,
+                    "successful_requests": 0,
+                    "failed_requests": 0,
+                    "last_used": None
+                }
+                _model_manager.model_errors[model_key] = []
             
             logger.info("Model manager initialized with default models")
         except Exception as e:

@@ -29,7 +29,7 @@ class POCGenerator:
         description: str,
         vulnerability_type: str,
         affected_component: str,
-        model_name: str = "codellama",
+        model_name: str = "codellama:7b",
         **kwargs
     ) -> Dict[str, str]:
         """Generate a PoC code for a CVE."""

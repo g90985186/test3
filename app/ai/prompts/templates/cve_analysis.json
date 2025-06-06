@@ -6,7 +6,7 @@
     "metadata": {
         "category": "security",
         "model": "llama3.1",
-        "max_tokens": 2048,
-        "temperature": 0.7
+        "max_tokens": "2048",
+        "temperature": "0.7"
     }
 } 

@@ -6,7 +6,7 @@
     "metadata": {
         "category": "security",
         "model": "codellama",
-        "max_tokens": 4096,
-        "temperature": 0.3
+        "max_tokens": "4096",
+        "temperature": "0.3"
     }
 } 

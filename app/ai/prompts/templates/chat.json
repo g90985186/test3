@@ -12,7 +12,7 @@
     "metadata": {
         "category": "chat",
         "model": "llama3.1:8b",
-        "max_tokens": 1000,
-        "temperature": 0.7
+        "max_tokens": "1000",
+        "temperature": "0.7"
     }
 }
