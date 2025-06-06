@@ -1,0 +1,123 @@
+from typing import List, Dict, Optional
+import json
+from datetime import datetime
+from pathlib import Path
+from ..models.model_manager import ModelManager
+from ..prompts.prompt_manager import PromptManager
+
+class ChatService:
+    def __init__(self, model_manager: ModelManager, prompt_manager: PromptManager):
+        self.model_manager = model_manager
+        self.prompt_manager = prompt_manager
+        self.chat_history_dir = Path("data/chat_history")
+        self.chat_history_dir.mkdir(parents=True, exist_ok=True)
+        
+    async def get_response(
+        self,
+        user_question: str,
+        session_id: str,
+        cve_id: Optional[str] = None,
+        poc_id: Optional[str] = None
+    ) -> Dict:
+        """Get AI response for a user question."""
+        try:
+            # Load chat history
+            chat_history = self._load_chat_history(session_id)
+            
+            # Get CVE and PoC information if available
+            cve_info = self._get_cve_info(cve_id) if cve_id else ""
+            poc_info = self._get_poc_info(poc_id) if poc_id else ""
+            
+            # Format chat history
+            formatted_history = self._format_chat_history(chat_history)
+            
+            # Get response from AI
+            response = await self._get_ai_response(
+                user_question,
+                cve_info,
+                poc_info,
+                formatted_history
+            )
+            
+            # Save to chat history
+            self._save_to_history(session_id, user_question, response)
+            
+            return {
+                "response": response,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            raise Exception(f"Error getting chat response: {str(e)}")
+    
+    def _load_chat_history(self, session_id: str) -> List[Dict]:
+        """Load chat history for a session."""
+        history_file = self.chat_history_dir / f"{session_id}.json"
+        if history_file.exists():
+            with open(history_file, "r") as f:
+                return json.load(f)
+        return []
+    
+    def _save_to_history(self, session_id: str, question: str, response: str):
+        """Save chat interaction to history."""
+        history = self._load_chat_history(session_id)
+        history.append({
+            "question": question,
+            "response": response,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # Keep only last 50 messages
+        history = history[-50:]
+        
+        with open(self.chat_history_dir / f"{session_id}.json", "w") as f:
+            json.dump(history, f, indent=2)
+    
+    def _format_chat_history(self, history: List[Dict]) -> str:
+        """Format chat history for prompt."""
+        formatted = []
+        for msg in history[-5:]:  # Only use last 5 messages for context
+            formatted.append(f"User: {msg['question']}")
+            formatted.append(f"Assistant: {msg['response']}")
+        return "\n".join(formatted)
+    
+    def _get_cve_info(self, cve_id: str) -> str:
+        """Get CVE information from database."""
+        # TODO: Implement CVE info retrieval
+        return f"CVE ID: {cve_id}"
+    
+    def _get_poc_info(self, poc_id: str) -> str:
+        """Get PoC information from database."""
+        # TODO: Implement PoC info retrieval
+        return f"PoC ID: {poc_id}"
+    
+    async def _get_ai_response(
+        self,
+        question: str,
+        cve_info: str,
+        poc_info: str,
+        chat_history: str
+    ) -> str:
+        """Get response from AI model."""
+        prompt = self.prompt_manager.get_prompt("chat")
+        formatted_prompt = prompt.format(
+            cve_info=cve_info,
+            poc_info=poc_info,
+            chat_history=chat_history,
+            user_question=question
+        )
+        
+        response = await self.model_manager.generate_response(
+            formatted_prompt,
+            model_name=prompt.metadata["model"],
+            max_tokens=prompt.metadata["max_tokens"],
+            temperature=prompt.metadata["temperature"]
+        )
+        
+        return response.strip()
+    
+    def clear_history(self, session_id: str):
+        """Clear chat history for a session."""
+        history_file = self.chat_history_dir / f"{session_id}.json"
+        if history_file.exists():
+            history_file.unlink() 

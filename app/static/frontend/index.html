@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-Powered CVE Analysis Platform for security vulnerability assessment">
+    <title>CVE Analysis Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Navigation -->
+    <header>
+        <nav class="bg-blue-800 text-white shadow-lg" role="navigation" aria-label="Main navigation">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <i class="fas fa-shield-alt text-2xl mr-3" aria-hidden="true"></i>
+                        <h1 class="text-xl font-bold">CVE Analysis Platform</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="showDashboard()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="View Dashboard">
+                            <i class="fas fa-chart-line mr-2" aria-hidden="true"></i>Dashboard
+                        </button>
+                        <button onclick="showCVESearch()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="Search CVEs">
+                            <i class="fas fa-search mr-2" aria-hidden="true"></i>CVE Search
+                        </button>
+                        <button onclick="showAnalysis()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="View AI Analysis">
+                            <i class="fas fa-brain mr-2" aria-hidden="true"></i>AI Analysis
+                        </button>
+                        <button onclick="showWatchlist()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 relative" aria-label="View Watchlist">
+                            <i class="fas fa-bookmark mr-2" aria-hidden="true"></i>Watchlist
+                            <span id="watchlist-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                        </button>
+                        <button onclick="showTimeline()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="View Timeline">
+                            <i class="fas fa-clock mr-2" aria-hidden="true"></i>Timeline
+                        </button>
+                        
+                        <div class="flex items-center space-x-3 ml-4 border-l pl-4 border-blue-700">
+                            <!-- Notifications -->
+                            <button onclick="toggleNotifications()" class="relative text-white hover:text-gray-200">
+                                <i class="fas fa-bell text-lg"></i>
+                                <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                            </button>
+                            
+                            <!-- Dark Mode Toggle -->
+                            <button onclick="toggleDarkMode()" class="text-white hover:text-gray-200" aria-label="Toggle dark mode">
+                                <i id="theme-icon" class="fas fa-moon text-lg"></i>
+                            </button>
+                            
+                            <!-- Settings -->
+                            <button onclick="showSettings()" class="text-white hover:text-gray-200" aria-label="Settings">
+                                <i class="fas fa-cog text-lg"></i>
+                            </button>
+                            
+                            <!-- User Section -->
+                            <div id="user-section" class="ml-4 border-l pl-4 border-blue-700">
+                                <button onclick="authManager.showLoginModal()" class="text-white hover:text-gray-200">
+                                    <i class="fas fa-sign-in-alt mr-2"></i>Login
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Chat Interface -->
+        <section id="chat-interface" class="bg-white rounded-xl shadow-xl overflow-hidden mb-8" aria-label="AI Chat Assistant">
+            <!-- Chat Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                            <i class="fas fa-robot text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold">CVE Analysis AI Assistant</h2>
+                            <p class="text-blue-100">Powered by advanced AI for cybersecurity insights</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="clearChat()" 
+                                class="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all"
+                                title="Clear Chat History">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button onclick="exportChatHistory()" 
+                                class="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all"
+                                title="Export Chat">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Messages Container -->
+            <div class="relative">
+                <div id="chat-messages" 
+                     class="h-96 overflow-y-auto p-6 bg-gradient-to-b from-gray-50 to-white" 
+                     role="log" 
+                     aria-label="Chat messages"
+                     style="scroll-behavior: smooth;">
+                    <!-- Welcome Message -->
+                    <div class="text-center py-8 text-gray-500" id="chat-welcome">
+                        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-comments text-blue-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">Welcome to AI Chat</h3>
+                        <p class="text-sm mb-4">Ask me about CVEs, security analysis, or platform features</p>
+                        <div class="flex flex-wrap justify-center gap-2">
+                            <button onclick="sendQuickMessage('Show me recent critical CVEs')" 
+                                    class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition-colors">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>Recent Critical CVEs
+                            </button>
+                            <button onclick="sendQuickMessage('How do I search for vulnerabilities?')" 
+                                    class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm hover:bg-green-200 transition-colors">
+                                <i class="fas fa-search mr-1"></i>How to Search
+                            </button>
+                            <button onclick="sendQuickMessage('Explain CVSS scoring')" 
+                                    class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm hover:bg-purple-200 transition-colors">
+                                <i class="fas fa-chart-bar mr-1"></i>CVSS Scoring
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Typing Indicator -->
+                <div id="typing-indicator" class="hidden px-6 py-2 border-t border-gray-100">
+                    <div class="flex items-center space-x-2 text-gray-500">
+                        <div class="flex space-x-1">
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s;"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
+                        </div>
+                        <span class="text-sm">AI is thinking...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Input -->
+            <div class="border-t border-gray-200 p-4 bg-gray-50">
+                <div class="flex items-end space-x-3">
+                    <div class="flex-1 relative">
+                        <textarea id="chat-input" 
+                                 class="w-full p-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
+                                 placeholder="Ask about CVEs, security analysis, or platform features..."
+                                 rows="1"
+                                 maxlength="1000"
+                                 style="min-height: 44px; max-height: 120px;"
+                                 onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"
+                                 oninput="autoResizeChatInput(this); updateChatCharCounter(this);"
+                                 aria-label="Chat input"></textarea>
+                        <div class="absolute bottom-2 right-2 flex items-center space-x-1">
+                            <span id="chat-char-counter" class="text-xs text-gray-400">0/1000</span>
+                            <button type="button" 
+                                    onclick="attachChatFile()" 
+                                    class="text-gray-400 hover:text-gray-600 p-1"
+                                    title="Attach file">
+                                <i class="fas fa-paperclip text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="sendMessage()" 
+                            id="chat-send-btn"
+                            class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Send message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="section" aria-label="Security Dashboard">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Security Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <article class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle text-red-500 text-2xl" aria-hidden="true"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Critical CVEs</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="critical-count" aria-live="polite">0</p>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-chart-line text-blue-500 text-2xl" aria-hidden="true"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Total CVEs</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="total-count" aria-live="polite">0</p>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-robot text-green-500 text-2xl" aria-hidden="true"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">AI Analyses</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="analysis-count" aria-live="polite">0</p>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-clock text-yellow-500 text-2xl" aria-hidden="true"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Recent CVEs</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="recent-count" aria-live="polite">0</p>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                
+                <!-- Recent CVEs Table -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b">
+                        <h3 class="text-lg font-medium text-gray-900">Recent CVEs</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200" role="grid" aria-label="Recent CVEs">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CVE ID</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CVSS Score</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-cves-table" class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                        Loading...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CVE Search Section -->
+        <section id="cve-search-section" class="section hidden" aria-label="Hybrid CVE Search">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Hybrid CVE Search</h2>
+                <p class="text-gray-600 mb-6">Search CVEs from local database and/or live NVD feed</p>
+                
+                <!-- Quick Filter Chips -->
+                <div class="mb-6 flex flex-wrap gap-2">
+                    <button onclick="performQuickFilter('critical')" class="quick-filter-chip bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm hover:bg-red-200 transition-colors">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Critical Only
+                    </button>
+                    <button onclick="performQuickFilter('recent')" class="quick-filter-chip bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition-colors">
+                        <i class="fas fa-clock mr-1"></i>Last 7 Days
+                    </button>
+                    <button onclick="performQuickFilter('high-cvss')" class="quick-filter-chip bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm hover:bg-orange-200 transition-colors">
+                        <i class="fas fa-chart-line mr-1"></i>CVSS ≥ 8.0
+                    </button>
+                    <button onclick="performQuickFilter('exploitable')" class="quick-filter-chip bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm hover:bg-purple-200 transition-colors">
+                        <i class="fas fa-bug mr-1"></i>Known Exploits
+                    </button>
+                </div>
+                
+                <!-- Advanced Search Form -->
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+                    <!-- Basic Search -->
+                    <div class="p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1 relative">
+                                <input type="text" id="cve-search-input" 
+                                       placeholder="Search by CVE ID, keywords, or description..." 
+                                       class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                       onkeypress="if(event.key === 'Enter') searchCVEs()">
+                                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                            <button onclick="searchCVEs()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                                <i class="fas fa-search mr-2"></i>Search
+                            </button>
+                            <button onclick="toggleAdvancedFilters()" class="bg-white text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300">
+                                <i class="fas fa-sliders-h mr-2"></i>Filters
+                                <span id="active-filter-count" class="ml-2 bg-blue-600 text-white text-xs rounded-full px-2 py-0.5 hidden">0</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Active Filters Summary -->
+                        <div id="active-filters-summary" class="hidden mt-4 flex flex-wrap gap-2">
+                            <!-- Active filter tags will be displayed here -->
+                        </div>
+                    </div>
+
+                    <!-- Advanced Filters -->
+                    <div id="advanced-filters" class="hidden border-t border-gray-200">
+                        <div class="p-6 space-y-6">
+                            <!-- Date Range Section -->
+                            <div class="filter-section">
+                                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                    <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>Date Range
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="relative">
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">From Date</label>
+                                        <input type="date" id="date-from" 
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               onchange="updateFilterSummary()">
+                                        <button onclick="setDatePreset('from', -30)" class="absolute right-2 top-8 text-xs text-blue-600 hover:text-blue-800">30d</button>
+                                    </div>
+                                    <div class="relative">
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">To Date</label>
+                                        <input type="date" id="date-to" 
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               onchange="updateFilterSummary()">
+                                        <button onclick="setDatePreset('to', 0)" class="absolute right-2 top-8 text-xs text-blue-600 hover:text-blue-800">Today</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CVSS Score Range -->
+                            <div class="filter-section">
+                                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                    <i class="fas fa-tachometer-alt mr-2 text-orange-500"></i>CVSS Score Range
+                                </h4>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm text-gray-600">
+                                        <span>Min: <span id="cvss-min-label">0.0</span></span>
+                                        <span>Max: <span id="cvss-max-label">10.0</span></span>
+                                    </div>
+                                    <div class="relative pt-1">
+                                        <div class="cvss-range-slider">
+                                            <input type="range" id="cvss-min-slider" min="0" max="10" step="0.1" value="0" 
+                                                   class="cvss-slider" oninput="updateCVSSRange()">
+                                            <input type="range" id="cvss-max-slider" min="0" max="10" step="0.1" value="10" 
+                                                   class="cvss-slider" oninput="updateCVSSRange()">
+                                            <div class="cvss-range-track"></div>
+                                            <div id="cvss-range-fill" class="cvss-range-fill"></div>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 mt-2">
+                                        <input type="number" id="cvss-min" min="0" max="10" step="0.1" value="0" 
+                                               class="px-3 py-1 border border-gray-300 rounded text-sm"
+                                               oninput="updateCVSSSliders()">
+                                        <input type="number" id="cvss-max" min="0" max="10" step="0.1" value="10" 
+                                               class="px-3 py-1 border border-gray-300 rounded text-sm"
+                                               oninput="updateCVSSSliders()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Severity Selection -->
+                            <div class="filter-section">
+                                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-2 text-red-500"></i>Severity Levels
+                                </h4>
+                                <div class="flex flex-wrap gap-2" id="severity-checkboxes">
+                                    <label class="severity-checkbox">
+                                        <input type="checkbox" value="CRITICAL" class="hidden severity-input" onchange="updateFilterSummary()">
+                                        <span class="severity-label critical">
+                                            <i class="fas fa-check mr-1 check-icon"></i>Critical
+                                        </span>
+                                    </label>
+                                    <label class="severity-checkbox">
+                                        <input type="checkbox" value="HIGH" class="hidden severity-input" onchange="updateFilterSummary()">
+                                        <span class="severity-label high">
+                                            <i class="fas fa-check mr-1 check-icon"></i>High
+                                        </span>
+                                    </label>
+                                    <label class="severity-checkbox">
+                                        <input type="checkbox" value="MEDIUM" class="hidden severity-input" onchange="updateFilterSummary()">
+                                        <span class="severity-label medium">
+                                            <i class="fas fa-check mr-1 check-icon"></i>Medium
+                                        </span>
+                                    </label>
+                                    <label class="severity-checkbox">
+                                        <input type="checkbox" value="LOW" class="hidden severity-input" onchange="updateFilterSummary()">
+                                        <span class="severity-label low">
+                                            <i class="fas fa-check mr-1 check-icon"></i>Low
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Vulnerability Types -->
+                            <div class="filter-section">
+                                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                    <i class="fas fa-shield-alt mr-2 text-purple-500"></i>Vulnerability Types
+                                </h4>
+                                <div class="flex flex-wrap gap-2" id="vuln-type-tags">
+                                    <button onclick="toggleVulnType('RCE')" class="vuln-type-tag" data-type="RCE">
+                                        <i class="fas fa-terminal mr-1"></i>Remote Code Execution
+                                    </button>
+                                    <button onclick="toggleVulnType('XSS')" class="vuln-type-tag" data-type="XSS">
+                                        <i class="fas fa-code mr-1"></i>Cross-Site Scripting
+                                    </button>
+                                    <button onclick="toggleVulnType('SQLI')" class="vuln-type-tag" data-type="SQLI">
+                                        <i class="fas fa-database mr-1"></i>SQL Injection
+                                    </button>
+                                    <button onclick="toggleVulnType('CSRF')" class="vuln-type-tag" data-type="CSRF">
+                                        <i class="fas fa-exchange-alt mr-1"></i>CSRF
+                                    </button>
+                                    <button onclick="toggleVulnType('DOS')" class="vuln-type-tag" data-type="DOS">
+                                        <i class="fas fa-server mr-1"></i>Denial of Service
+                                    </button>
+                                    <button onclick="toggleVulnType('PRIV_ESC')" class="vuln-type-tag" data-type="PRIV_ESC">
+                                        <i class="fas fa-user-shield mr-1"></i>Privilege Escalation
+                                    </button>
+                                    <button onclick="toggleVulnType('INFO_DISC')" class="vuln-type-tag" data-type="INFO_DISC">
+                                        <i class="fas fa-eye mr-1"></i>Information Disclosure
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Affected Products -->
+                            <div class="filter-section">
+                                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                    <i class="fas fa-boxes mr-2 text-green-500"></i>Affected Products
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="relative">
+                                        <input type="text" id="vendor-filter" 
+                                               placeholder="Vendor (e.g., Microsoft, Adobe)" 
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                               oninput="showVendorSuggestions(this.value)">
+                                        <div id="vendor-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-48 overflow-y-auto">
+                                            <!-- Vendor suggestions will appear here -->
+                                        </div>
+                                    </div>
+                                    <div class="relative">
+                                        <input type="text" id="product-filter" 
+                                               placeholder="Product (e.g., Windows, Chrome)" 
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                               oninput="showProductSuggestions(this.value)">
+                                        <div id="product-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-48 overflow-y-auto">
+                                            <!-- Product suggestions will appear here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Search Options -->
+                            <div class="filter-section">
+                                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                    <i class="fas fa-cog mr-2 text-gray-500"></i>Search Options
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Data Source</label>
+                                        <div class="relative">
+                                            <select id="search-type-filter" 
+                                                    class="w-full appearance-none px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                                    onchange="updateFilterSummary()">
+                                                <option value="both">🔄 Both (Local + NVD)</option>
+                                                <option value="local">💾 Local Database Only</option>
+                                                <option value="nvd">🌐 NVD Live Only</option>
+                                            </select>
+                                            <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Results Per Page</label>
+                                        <div class="relative">
+                                            <select id="results-per-page" 
+                                                    class="w-full appearance-none px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                                <option value="10">10 Results</option>
+                                                <option value="25" selected>25 Results</option>
+                                                <option value="50">50 Results</option>
+                                                <option value="100">100 Results</option>
+                                            </select>
+                                            <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Filter Actions -->
+                            <div class="flex justify-between items-center pt-4 border-t">
+                                <div class="flex space-x-2">
+                                    <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                        <i class="fas fa-check mr-2"></i>Apply Filters
+                                    </button>
+                                    <button onclick="saveSearchPreferences()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                                        <i class="fas fa-save mr-2"></i>Save Search
+                                    </button>
+                                    <button onclick="loadSearchPreferences()" class="text-blue-600 hover:text-blue-800 px-4 py-2">
+                                        <i class="fas fa-folder-open mr-2"></i>Load Saved
+                                    </button>
+                                </div>
+                                <button onclick="resetFilters()" class="text-gray-600 hover:text-gray-800 px-4 py-2">
+                                    <i class="fas fa-undo mr-2"></i>Reset All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="search-results" class="bg-white rounded-xl shadow-lg hidden">
+                    <div class="px-6 py-4 border-b flex justify-between items-center">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">Search Results</h3>
+                            <p id="results-summary" class="text-sm text-gray-500 mt-1"></p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span id="results-count" class="text-sm font-medium text-gray-700">0 results</span>
+                            <div class="flex space-x-1">
+                                <button onclick="exportResults('csv')" class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors" title="Export as CSV">
+                                    <i class="fas fa-file-csv"></i>
+                                </button>
+                                <button onclick="exportResults('json')" class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors" title="Export as JSON">
+                                    <i class="fas fa-file-code"></i>
+                                </button>
+                                <button onclick="exportResults('pdf')" class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors" title="Export as PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="search-results-content">
+                            <!-- Dynamic content populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Analysis Section -->
+        <section id="analysis-section" class="section hidden" aria-label="AI-Powered CVE Analysis">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">AI-Powered CVE Analysis</h2>
+                <p class="text-gray-600 mb-6">Generate comprehensive vulnerability assessments using advanced AI models</p>
+                
+                <!-- Analysis Form -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CVE ID</label>
+                            <input type="text" id="analysis-cve-input" placeholder="Enter CVE ID (e.g., CVE-2024-1234)" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Type</label>
+                            <select id="analysis-type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="comprehensive">Comprehensive Analysis</option>
+                                <option value="quick">Quick Analysis</option>
+                                <option value="technical">Technical Deep Dive</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-4">
+                        <button onclick="startAnalysis()" class="btn-primary">
+                            <i class="fas fa-brain"></i>
+                            <span>Start AI Analysis</span>
+                        </button>
+                        <button onclick="document.getElementById('analysis-cve-input').value = 'CVE-2024-1234'" class="btn-secondary">
+                            <i class="fas fa-flask"></i>
+                            <span>Try Demo CVE</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Analysis Info -->
+                    <div class="mt-4 p-3 bg-purple-50 rounded-lg">
+                        <h4 class="text-sm font-medium text-purple-900 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>How AI Analysis Works:
+                        </h4>
+                        <ul class="text-xs text-purple-700 space-y-1">
+                            <li>• <strong>Auto-Import:</strong> CVEs not in local database are automatically imported from NVD</li>
+                            <li>• <strong>Multi-Model Analysis:</strong> Uses specialized AI models for different aspects of vulnerability assessment</li>
+                            <li>• <strong>Structured Output:</strong> Generates attack vectors, impact assessment, and business risk analysis</li>
+                            <li>• <strong>Confidence Scoring:</strong> Provides confidence levels for all analysis components</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Analysis Results -->
+                <div id="analysis-results" class="hidden">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Analysis Results</h3>
+                        <div id="analysis-content">
+                            <!-- Dynamic content -->
+                        </div>
+                        
+                        <!-- PoC Generation Section -->
+                        <div class="mt-8 border-t pt-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h4 class="text-lg font-medium text-gray-900">Proof of Concept Generation</h4>
+                                    <p class="text-sm text-gray-500 mt-1">Generate a working proof of concept for the analyzed CVE</p>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <select id="poc-model-select" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="codellama">CodeLlama (Recommended)</option>
+                                        <option value="mistral">Mistral</option>
+                                        <option value="llama2">Llama 2</option>
+                                    </select>
+                                    <button onclick="generatePoC()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center">
+                                        <i class="fas fa-code mr-2"></i>Generate PoC
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Generation Progress -->
+                            <div id="poc-progress" class="hidden mb-4">
+                                <div class="flex items-center space-x-3">
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                        <div id="poc-progress-bar" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                    <span id="poc-progress-text" class="text-sm text-gray-600">0%</span>
+                                </div>
+                                <div id="poc-status" class="text-sm text-gray-500 mt-2"></div>
+                            </div>
+                            
+                            <div id="poc-content" class="hidden">
+                                <!-- Tabs for Code and Documentation -->
+                                <div class="border-b border-gray-200 mb-4">
+                                    <nav class="flex space-x-8">
+                                        <button onclick="switchPoCTab('code')" class="poc-tab active border-b-2 border-green-500 text-green-600 py-2 px-1">
+                                            <i class="fas fa-code mr-2"></i>Code
+                                        </button>
+                                        <button onclick="switchPoCTab('docs')" class="poc-tab text-gray-500 hover:text-gray-700 py-2 px-1">
+                                            <i class="fas fa-book mr-2"></i>Documentation
+                                        </button>
+                                        <button onclick="switchPoCTab('validation')" class="poc-tab text-gray-500 hover:text-gray-700 py-2 px-1">
+                                            <i class="fas fa-check-circle mr-2"></i>Validation
+                                        </button>
+                                    </nav>
+                                </div>
+                                
+                                <!-- Code Tab -->
+                                <div id="poc-code-tab" class="poc-tab-content">
+                                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                        <div class="flex justify-between items-center mb-4">
+                                            <div class="flex items-center space-x-4">
+                                                <h5 class="font-medium text-gray-900">Generated PoC</h5>
+                                                <div class="flex items-center space-x-2">
+                                                    <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                                        <i class="fas fa-code-branch mr-1"></i>Python
+                                                    </span>
+                                                    <span id="poc-complexity" class="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                                                        <i class="fas fa-brain mr-1"></i>Complexity: Medium
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center space-x-3">
+                                                <button onclick="toggleCodeEditor()" class="text-blue-600 hover:text-blue-800" title="Toggle Editor Mode">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                <button onclick="copyPoC()" class="text-blue-600 hover:text-blue-800" title="Copy to clipboard">
+                                                    <i class="fas fa-copy"></i> Copy
+                                                </button>
+                                                <button onclick="downloadPoC()" class="text-blue-600 hover:text-blue-800" title="Download as Python file">
+                                                    <i class="fas fa-download"></i> Download
+                                                </button>
+                                                <button onclick="validatePoC()" class="text-blue-600 hover:text-blue-800" title="Validate PoC">
+                                                    <i class="fas fa-check-circle"></i> Validate
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Code Editor -->
+                                        <div id="poc-editor-container" class="hidden mb-4">
+                                            <div class="flex space-x-4">
+                                                <div class="flex-1">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <h6 class="text-sm font-medium text-gray-700">Code Editor</h6>
+                                                        <div class="flex items-center space-x-2">
+                                                            <button onclick="formatCode()" class="text-xs text-blue-600 hover:text-blue-800">
+                                                                <i class="fas fa-magic mr-1"></i>Format
+                                                            </button>
+                                                            <button onclick="resetCode()" class="text-xs text-red-600 hover:text-red-800">
+                                                                <i class="fas fa-undo mr-1"></i>Reset
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div id="poc-editor" class="h-96 border border-gray-300 rounded-lg"></div>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <h6 class="text-sm font-medium text-gray-700">Live Preview</h6>
+                                                        <button onclick="runPreview()" class="text-xs text-green-600 hover:text-green-800">
+                                                            <i class="fas fa-play mr-1"></i>Run
+                                                        </button>
+                                                    </div>
+                                                    <div id="poc-preview" class="h-96 bg-white border border-gray-300 rounded-lg p-4 overflow-auto">
+                                                        <div class="text-gray-500 text-center py-8">
+                                                            <i class="fas fa-play-circle text-3xl mb-2"></i>
+                                                            <p>Click "Run" to test the PoC</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Code Display -->
+                                        <div id="poc-code-display">
+                                            <pre id="poc-code" class="bg-gray-800 text-gray-100 p-4 rounded-lg overflow-x-auto"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Documentation Tab -->
+                                <div id="poc-docs-tab" class="poc-tab-content hidden">
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <div class="flex justify-between items-center mb-4">
+                                            <h5 class="font-medium text-gray-900">Documentation</h5>
+                                            <button onclick="exportDocs()" class="text-blue-600 hover:text-blue-800">
+                                                <i class="fas fa-file-export mr-1"></i>Export
+                                            </button>
+                                        </div>
+                                        <div id="poc-docs" class="prose prose-sm max-w-none">
+                                            <!-- Dynamic content -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Validation Tab -->
+                                <div id="poc-validation-tab" class="poc-tab-content hidden">
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <div class="flex justify-between items-center mb-4">
+                                            <h5 class="font-medium text-gray-900">Validation Results</h5>
+                                            <div class="flex items-center space-x-2">
+                                                <button onclick="validatePoC()" class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-sync-alt mr-1"></i>Revalidate
+                                                </button>
+                                                <button onclick="exportValidation()" class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-file-export mr-1"></i>Export
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div id="poc-validation" class="space-y-4">
+                                            <div class="flex items-center space-x-2">
+                                                <i class="fas fa-spinner fa-spin text-blue-500"></i>
+                                                <span>Run validation to check the PoC...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-rocket mr-2"></i>Quick Actions
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button onclick="analyzeCVE('CVE-2024-1234')" class="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow text-left">
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-bug text-red-500 mr-3"></i>
+                                <span class="font-semibold">Demo Analysis</span>
+                            </div>
+                            <p class="text-sm text-gray-600">Try analyzing CVE-2024-1234 (sample vulnerability)</p>
+                        </button>
+                        
+                        <button onclick="showCVESearch()" class="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow text-left">
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-search text-blue-500 mr-3"></i>
+                                <span class="font-semibold">Search First</span>
+                            </div>
+                            <p class="text-sm text-gray-600">Find CVEs to analyze from our database or NVD</p>
+                        </button>
+                        
+                        <div class="p-4 bg-white rounded-lg shadow text-left">
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-lightbulb text-yellow-500 mr-3"></i>
+                                <span class="font-semibold">Pro Tip</span>
+                            </div>
+                            <p class="text-sm text-gray-600">Use the export feature to generate professional reports for stakeholders</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Watchlist Section -->
+        <section id="watchlist-section" class="section hidden" aria-label="CVE Watchlist">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">CVE Watchlist</h2>
+                <p class="text-gray-600 mb-6">Track and monitor important vulnerabilities</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-bookmark text-blue-500 text-2xl mr-4"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Total Bookmarked</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="watchlist-total">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-2xl mr-4"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Critical Watching</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="watchlist-critical">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-bell text-yellow-500 text-2xl mr-4"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Alerts Set</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="watchlist-alerts">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Watchlist Items -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-medium text-gray-900">Your Watchlist</h3>
+                        <div class="flex space-x-2">
+                            <button onclick="sortWatchlist('severity')" class="text-sm text-gray-600 hover:text-gray-900">
+                                <i class="fas fa-sort mr-1"></i>Sort by Severity
+                            </button>
+                            <button onclick="sortWatchlist('date')" class="text-sm text-gray-600 hover:text-gray-900">
+                                <i class="fas fa-calendar mr-1"></i>Sort by Date
+                            </button>
+                            <button onclick="exportWatchlist()" class="text-sm text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-download mr-1"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="watchlist-items" class="p-6">
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-bookmark text-4xl mb-4"></i>
+                            <p>No CVEs in your watchlist yet</p>
+                            <p class="text-sm mt-2">Start adding CVEs to track them here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Timeline Section -->
+        <section id="timeline-section" class="section hidden" aria-label="CVE Timeline">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Vulnerability Timeline</h2>
+                <p class="text-gray-600 mb-6">Visualize CVE trends and patterns over time</p>
+                
+                <!-- Timeline Controls -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Time Range</label>
+                            <select id="timeline-range" onchange="updateTimeline()" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="90">Last 90 days</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Severity</label>
+                            <select id="timeline-severity" onchange="updateTimeline()" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="all">All Severities</option>
+                                <option value="critical">Critical Only</option>
+                                <option value="high">High & Above</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">View Type</label>
+                            <select id="timeline-view" onchange="updateTimeline()" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="chart">Chart View</option>
+                                <option value="calendar">Calendar View</option>
+                                <option value="list">List View</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="refreshTimeline()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full">
+                                <i class="fas fa-sync mr-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Visualization -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div id="timeline-container">
+                        <canvas id="timeline-chart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+
+                <!-- Timeline Statistics -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">Peak Day</h4>
+                        <p class="text-xl font-semibold text-gray-900" id="timeline-peak-day">-</p>
+                        <p class="text-sm text-gray-500" id="timeline-peak-count">0 CVEs</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">Average Daily</h4>
+                        <p class="text-xl font-semibold text-gray-900" id="timeline-avg">0</p>
+                        <p class="text-sm text-gray-500">CVEs per day</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">Trend</h4>
+                        <p class="text-xl font-semibold" id="timeline-trend">
+                            <i class="fas fa-arrow-up text-red-500"></i> <span>Increasing</span>
+                        </p>
+                        <p class="text-sm text-gray-500" id="timeline-trend-percent">+0%</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h4 class="text-sm font-medium text-gray-500 mb-2">Most Active</h4>
+                        <p class="text-xl font-semibold text-gray-900" id="timeline-active-vendor">-</p>
+                        <p class="text-sm text-gray-500" id="timeline-active-count">0 CVEs</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CVE Comparison Tool -->
+        <div id="comparison-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-900">Compare CVEs</h3>
+                    <button onclick="closeComparison()" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-gray-600 mb-4">Compare up to 3 CVEs side by side</p>
+                    <div class="grid grid-cols-3 gap-4">
+                        <input type="text" id="compare-cve-1" placeholder="CVE-YYYY-XXXXX" class="px-3 py-2 border border-gray-300 rounded-md">
+                        <input type="text" id="compare-cve-2" placeholder="CVE-YYYY-XXXXX" class="px-3 py-2 border border-gray-300 rounded-md">
+                        <input type="text" id="compare-cve-3" placeholder="CVE-YYYY-XXXXX" class="px-3 py-2 border border-gray-300 rounded-md">
+                    </div>
+                    <button onclick="performComparison()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <i class="fas fa-balance-scale mr-2"></i>Compare
+                    </button>
+                </div>
+                
+                <div id="comparison-results" class="hidden">
+                    <!-- Comparison results will be displayed here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Panel -->
+        <div id="notifications-panel" class="fixed right-0 top-16 w-96 bg-white shadow-lg rounded-l-lg hidden z-40 max-h-96 overflow-hidden">
+            <div class="p-4 border-b bg-gray-50">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-900">Notifications</h3>
+                    <div class="flex space-x-2">
+                        <button onclick="markAllRead()" class="text-sm text-blue-600 hover:text-blue-800">Mark all read</button>
+                        <button onclick="clearNotifications()" class="text-sm text-red-600 hover:text-red-800">Clear</button>
+                        <button onclick="toggleNotifications()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="notifications-list" class="overflow-y-auto max-h-80">
+                <div class="p-4 text-center text-gray-500">
+                    <i class="fas fa-bell-slash text-3xl mb-2"></i>
+                    <p>No new notifications</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Settings Modal -->
+        <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-900">Settings</h3>
+                    <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <!-- Settings Tabs -->
+                <div class="border-b border-gray-200 mb-6">
+                    <nav class="flex space-x-8">
+                        <button onclick="switchSettingsTab('general')" class="settings-tab active border-b-2 border-blue-500 text-blue-600 py-2 px-1">
+                            <i class="fas fa-cog mr-2"></i>General
+                        </button>
+                        <button onclick="switchSettingsTab('notifications')" class="settings-tab text-gray-500 hover:text-gray-700 py-2 px-1">
+                            <i class="fas fa-bell mr-2"></i>Notifications
+                        </button>
+                        <button onclick="switchSettingsTab('shortcuts')" class="settings-tab text-gray-500 hover:text-gray-700 py-2 px-1">
+                            <i class="fas fa-keyboard mr-2"></i>Shortcuts
+                        </button>
+                        <button onclick="switchSettingsTab('export')" class="settings-tab text-gray-500 hover:text-gray-700 py-2 px-1">
+                            <i class="fas fa-file-export mr-2"></i>Export
+                        </button>
+                    </nav>
+                </div>
+                
+                <!-- General Settings -->
+                <div id="settings-general" class="settings-tab-content">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="flex items-center space-x-3">
+                                <input type="checkbox" id="auto-refresh" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                <span class="text-gray-700">Auto-refresh dashboard (every 5 minutes)</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-3">
+                                <input type="checkbox" id="show-tooltips" class="h-4 w-4 text-blue-600 border-gray-300 rounded" checked>
+                                <span class="text-gray-700">Show helpful tooltips</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Default Search Source</label>
+                            <select id="default-search-source" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="both">Both (Local + NVD)</option>
+                                <option value="local">Local Database</option>
+                                <option value="nvd">NVD Live</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Results Per Page</label>
+                            <select id="default-results-per-page" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Notification Settings -->
+                <div id="settings-notifications" class="settings-tab-content hidden">
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-3">Email Notifications</h4>
+                            <div class="space-y-3">
+                                <label class="flex items-center space-x-3">
+                                    <input type="checkbox" id="notify-critical" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                    <span class="text-gray-700">Critical CVEs</span>
+                                </label>
+                                <label class="flex items-center space-x-3">
+                                    <input type="checkbox" id="notify-watchlist" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                    <span class="text-gray-700">Watchlist updates</span>
+                                </label>
+                                <label class="flex items-center space-x-3">
+                                    <input type="checkbox" id="notify-analysis" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                    <span class="text-gray-700">Analysis complete</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                            <input type="email" id="notification-email" placeholder="your@email.com" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Keyboard Shortcuts -->
+                <div id="settings-shortcuts" class="settings-tab-content hidden">
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-gray-700">Dashboard</div>
+                            <div class="text-gray-900 font-mono">Alt + D</div>
+                            
+                            <div class="text-gray-700">Search</div>
+                            <div class="text-gray-900 font-mono">Alt + S</div>
+                            
+                            <div class="text-gray-700">Analysis</div>
+                            <div class="text-gray-900 font-mono">Alt + A</div>
+                            
+                            <div class="text-gray-700">Watchlist</div>
+                            <div class="text-gray-900 font-mono">Alt + W</div>
+                            
+                            <div class="text-gray-700">Timeline</div>
+                            <div class="text-gray-900 font-mono">Alt + T</div>
+                            
+                            <div class="text-gray-700">Toggle Dark Mode</div>
+                            <div class="text-gray-900 font-mono">Alt + M</div>
+                            
+                            <div class="text-gray-700">Quick Search</div>
+                            <div class="text-gray-900 font-mono">Ctrl + K</div>
+                            
+                            <div class="text-gray-700">Export Results</div>
+                            <div class="text-gray-900 font-mono">Ctrl + E</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Export Settings -->
+                <div id="settings-export" class="settings-tab-content hidden">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Default Export Format</label>
+                            <select id="default-export-format" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="pdf">PDF Report</option>
+                                <option value="csv">CSV Data</option>
+                                <option value="json">JSON</option>
+                                <option value="excel">Excel Spreadsheet</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Report Template</label>
+                            <select id="report-template" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="executive">Executive Summary</option>
+                                <option value="technical">Technical Report</option>
+                                <option value="compliance">Compliance Report</option>
+                                <option value="custom">Custom Template</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-3">
+                                <input type="checkbox" id="include-charts" class="h-4 w-4 text-blue-600 border-gray-300 rounded" checked>
+                                <span class="text-gray-700">Include charts in reports</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-3">
+                                <input type="checkbox" id="include-recommendations" class="h-4 w-4 text-blue-600 border-gray-300 rounded" checked>
+                                <span class="text-gray-700">Include AI recommendations</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-8 flex justify-end space-x-3 border-t pt-6">
+                    <button onclick="resetSettings()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                        Reset to Defaults
+                    </button>
+                    <button onclick="saveSettings()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Section -->
+        <section id="analysis-section" class="section hidden" aria-label="AI Analysis">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">AI-Powered CVE Analysis</h2>
+                <p class="text-gray-600 mb-6">Generate detailed vulnerability assessments and recommendations</p>
+                
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">CVE ID to Analyze</label>
+                        <div class="flex space-x-4">
+                            <input type="text" id="analysis-cve-id" 
+                                   placeholder="Enter CVE ID (e.g., CVE-2024-0001)" 
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <button onclick="startAnalysis()" 
+                                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                                <i class="fas fa-brain mr-2"></i>Analyze
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="analysis-results" class="hidden">
+                        <h3 class="text-xl font-semibold mb-4">Analysis Results</h3>
+                        <div id="analysis-content" class="prose max-w-none">
+                            <!-- Analysis results will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Watchlist Section -->
+        <section id="watchlist-section" class="section hidden" aria-label="CVE Watchlist">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">CVE Watchlist</h2>
+                <p class="text-gray-600 mb-6">Track and monitor important vulnerabilities</p>
+                
+                <!-- Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-bookmark text-blue-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Total Watched</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="watchlist-total">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Critical</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="watchlist-critical">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-bell text-yellow-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Alerts</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="watchlist-alerts">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Watchlist Controls -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Watchlist Items</h3>
+                        <div class="flex space-x-2">
+                            <select onchange="sortWatchlist(this.value)" class="px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="date">Sort by Date</option>
+                                <option value="severity">Sort by Severity</option>
+                                <option value="cvss">Sort by CVSS</option>
+                            </select>
+                            <button onclick="exportWatchlist()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                <i class="fas fa-download mr-2"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="watchlist-items">
+                        <!-- Watchlist items will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Timeline Section -->
+        <section id="timeline-section" class="section hidden" aria-label="CVE Timeline">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">CVE Timeline</h2>
+                <p class="text-gray-600 mb-6">Visualize vulnerability trends over time</p>
+                
+                <!-- Timeline Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-calendar text-blue-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">This Week</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="timeline-week">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-chart-line text-green-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">This Month</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="timeline-month">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-trending-up text-orange-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Trend</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="timeline-trend">↑ 12%</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-clock text-purple-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Avg/Day</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="timeline-avg">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Timeline Controls -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold">Timeline Visualization</h3>
+                        <div class="flex space-x-2">
+                            <button onclick="switchTimelineView('chart')" class="timeline-view-btn active px-4 py-2 bg-blue-600 text-white rounded-lg" data-view="chart">
+                                <i class="fas fa-chart-line mr-2"></i>Chart
+                            </button>
+                            <button onclick="switchTimelineView('calendar')" class="timeline-view-btn px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300" data-view="calendar">
+                                <i class="fas fa-calendar mr-2"></i>Calendar
+                            </button>
+                            <button onclick="switchTimelineView('list')" class="timeline-view-btn px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300" data-view="list">
+                                <i class="fas fa-list mr-2"></i>List
+                            </button>
+                            <button onclick="refreshTimeline()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                <i class="fas fa-sync mr-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="timeline-container">
+                        <!-- Timeline visualization will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" role="alert" aria-live="assertive">
+        <div class="bg-white p-4 rounded-lg shadow-lg">
+            <div class="loading-spinner"></div>
+            <p id="loading-message" class="mt-2 text-gray-700">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="fixed bottom-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg hidden" role="alert" aria-live="assertive">
+        <p id="error-message"></p>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="success-toast" class="fixed bottom-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg hidden" role="alert" aria-live="polite">
+        <p id="success-message"></p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-16">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h5 class="text-lg font-semibold mb-4">CVE Analysis Platform</h5>
+                    <p class="text-gray-300 text-sm">
+                        AI-powered vulnerability assessment platform for comprehensive security analysis.
+                    </p>
+                </div>
+                <div>
+                    <h5 class="text-lg font-semibold mb-4">Features</h5>
+                    <ul class="text-gray-300 text-sm space-y-2">
+                        <li><i class="fas fa-check mr-2"></i>Real-time CVE search</li>
+                        <li><i class="fas fa-check mr-2"></i>AI-powered analysis</li>
+                        <li><i class="fas fa-check mr-2"></i>Risk assessment</li>
+                        <li><i class="fas fa-check mr-2"></i>Professional reports</li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="text-lg font-semibold mb-4">System Status</h5>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                            <span class="text-gray-300">API Service: Online</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                            <span class="text-gray-300">AI Models: Ready</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                            <span class="text-gray-300">NVD Integration: Active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center">
+                <p class="text-gray-400 text-sm">
+                    © 2024 CVE Analysis Platform. Built with AI-powered security intelligence.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script src="auth.js"></script>
+    <script src="ui-driven-api.js"></script>
+    <script src="debug-search.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body>
+</html>

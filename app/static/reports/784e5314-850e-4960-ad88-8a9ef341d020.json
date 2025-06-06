@@ -1,0 +1,32 @@
+{
+  "report_id": "784e5314-850e-4960-ad88-8a9ef341d020",
+  "title": "Security Dashboard Report",
+  "generated_at": "2025-06-06T14:06:57.411413",
+  "report_type": "dashboard",
+  "template": "standard",
+  "data": {
+    "items": [],
+    "summary": {
+      "total_cves": 0,
+      "severity_breakdown": {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "CRITICAL": 0
+      },
+      "generated_at": "2025-06-06T14:06:57.411413"
+    },
+    "charts": [
+      {
+        "type": "pie",
+        "title": "CVE Severity Distribution",
+        "data": {
+          "LOW": 0,
+          "MEDIUM": 0,
+          "HIGH": 0,
+          "CRITICAL": 0
+        }
+      }
+    ]
+  }
+}

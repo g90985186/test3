@@ -1,0 +1,317 @@
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from typing import List, Optional
+from app.database import get_db
+from app.models.cve import CVE
+from app.services.nvd_search_service import NVDSearchService
+from pydantic import BaseModel
+from datetime import datetime
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+class SearchRequest(BaseModel):
+    query: Optional[str] = None
+    severity: Optional[str] = None
+    search_type: str = "both"
+    limit: int = 20
+
+class ImportRequest(BaseModel):
+    cve_id: str
+    force: bool = False
+
+@router.post("/search")
+async def search_cves_hybrid(
+    request: SearchRequest,
+    db: Session = Depends(get_db)
+):
+    """Hybrid CVE search supporting both local database and live NVD"""
+    
+    logger.info(f"Hybrid search: query='{request.query}', type='{request.search_type}', severity='{request.severity}'")
+    
+    results = {
+        "local_results": [],
+        "nvd_results": [],
+        "total_local": 0,
+        "total_nvd": 0,
+        "search_type": request.search_type,
+        "query": request.query,
+        "severity": request.severity,
+        "success": True,
+        "errors": []
+    }
+    
+    # Search local database
+    if request.search_type in ["local", "both"]:
+        try:
+            logger.info("Searching local database...")
+            query = db.query(CVE)
+            
+            if request.query and request.query.strip():
+                search_term = f"%{request.query.strip()}%"
+                query = query.filter(
+                    or_(
+                        CVE.cve_id.ilike(search_term),
+                        CVE.description.ilike(search_term)
+                    )
+                )
+            
+            if request.severity and request.severity.upper() in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
+                query = query.filter(CVE.severity_level == request.severity.upper())
+            
+            local_cves = query.order_by(CVE.published_date.desc()).limit(request.limit).all()
+            
+            for cve in local_cves:
+                cve_dict = cve.to_dict()
+                cve_dict.update({
+                    "source": "Local Database",
+                    "can_import": False,
+                    "nvd_link": f"https://nvd.nist.gov/vuln/detail/{cve.cve_id}"
+                })
+                results["local_results"].append(cve_dict)
+            
+            results["total_local"] = len(results["local_results"])
+            logger.info(f"Found {results['total_local']} local results")
+            
+        except Exception as e:
+            error_msg = f"Local search error: {str(e)}"
+            logger.error(error_msg)
+            results["errors"].append(error_msg)
+    
+    # Search NVD live
+    if request.search_type in ["nvd", "both"]:
+        try:
+            logger.info("Searching NVD live...")
+            nvd_service = NVDSearchService()
+            
+            cve_id = None
+            keyword = None
+            
+            if request.query and request.query.strip():
+                query_clean = request.query.strip()
+                if query_clean.upper().startswith("CVE-"):
+                    cve_id = query_clean
+                else:
+                    keyword = query_clean
+            
+            nvd_result = await nvd_service.search_live(
+                cve_id=cve_id,
+                keyword=keyword,
+                severity=request.severity,
+                limit=request.limit
+            )
+            
+            if nvd_result["success"]:
+                results["nvd_results"] = nvd_result["results"]
+                results["total_nvd"] = len(nvd_result["results"])
+                logger.info(f"Found {results['total_nvd']} NVD results")
+                
+                for nvd_cve in results["nvd_results"]:
+                    existing = db.query(CVE).filter(CVE.cve_id == nvd_cve["cve_id"]).first()
+                    if existing:
+                        nvd_cve["can_import"] = False
+                        nvd_cve["import_status"] = "Already in local database"
+                    else:
+                        nvd_cve["can_import"] = True
+                        nvd_cve["import_status"] = "Available to import"
+            else:
+                error_msg = f"NVD search error: {nvd_result['error']}"
+                logger.warning(error_msg)
+                results["errors"].append(error_msg)
+                results["nvd_rate_limited"] = nvd_result.get("rate_limited", False)
+                
+        except Exception as e:
+            error_msg = f"NVD search error: {str(e)}"
+            logger.error(error_msg)
+            results["errors"].append(error_msg)
+    
+    total_results = results["total_local"] + results["total_nvd"]
+    results["total_results"] = total_results
+    
+    if total_results == 0 and not results["errors"]:
+        results["message"] = "No CVEs found matching your criteria"
+    elif results["errors"]:
+        results["success"] = False
+    
+    return results
+
+@router.post("/import-from-nvd")
+async def import_cve_from_nvd(
+    request: ImportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Import a specific CVE from NVD into local database"""
+    
+    try:
+        cve_id = request.cve_id.strip()
+        logger.info(f"Importing CVE {cve_id} from NVD")
+        
+        existing = db.query(CVE).filter(CVE.cve_id == cve_id).first()
+        if existing and not request.force:
+            return {
+                "success": False,
+                "message": f"{cve_id} already exists in local database",
+                "cve_id": cve_id
+            }
+        
+        nvd_service = NVDSearchService()
+        nvd_result = await nvd_service.get_cve_details(cve_id)
+        
+        if not nvd_result["success"]:
+            return {
+                "success": False,
+                "message": f"CVE {cve_id} not found in NVD: {nvd_result.get('error')}",
+                "cve_id": cve_id
+            }
+        
+        cve_data = nvd_result["cve"]
+        
+        try:
+            published_date = None
+            if cve_data.get("published_date") and cve_data["published_date"] != "Unknown":
+                try:
+                    if len(cve_data["published_date"]) == 10:
+                        published_date = datetime.strptime(cve_data["published_date"], "%Y-%m-%d")
+                    else:
+                        published_date = datetime.fromisoformat(cve_data["published_date"].replace("Z", "+00:00"))
+                except:
+                    published_date = None
+            
+            modified_date = None
+            if cve_data.get("modified_date"):
+                try:
+                    modified_date = datetime.fromisoformat(cve_data["modified_date"].replace("Z", "+00:00"))
+                except:
+                    modified_date = None
+            
+            if existing and request.force:
+                existing.description = cve_data.get("description")
+                existing.published_date = published_date
+                existing.modified_date = modified_date
+                existing.cvss_v3_score = cve_data.get("cvss_v3_score")
+                existing.cvss_v3_vector = cve_data.get("cvss_v3_vector")
+                existing.severity_level = cve_data.get("severity_level")
+                existing.cwe_ids = cve_data.get("cwe_ids", [])
+                existing.references = cve_data.get("references", [])
+                existing.updated_at = datetime.utcnow()
+                
+                db.commit()
+                
+                return {
+                    "success": True,
+                    "message": f"CVE {cve_id} updated successfully",
+                    "cve": existing.to_dict(),
+                    "action": "updated"
+                }
+            else:
+                new_cve = CVE(
+                    cve_id=cve_data["cve_id"],
+                    description=cve_data.get("description"),
+                    published_date=published_date,
+                    modified_date=modified_date,
+                    cvss_v3_score=cve_data.get("cvss_v3_score"),
+                    cvss_v3_vector=cve_data.get("cvss_v3_vector"),
+                    severity_level=cve_data.get("severity_level"),
+                    cwe_ids=cve_data.get("cwe_ids", []),
+                    affected_products=[],
+                    references=cve_data.get("references", [])
+                )
+                
+                db.add(new_cve)
+                db.commit()
+                
+                return {
+                    "success": True,
+                    "message": f"CVE {cve_id} imported successfully",
+                    "cve": new_cve.to_dict(),
+                    "action": "imported"
+                }
+                
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error creating CVE object: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to create CVE record: {str(e)}",
+                "cve_id": cve_id
+            }
+        
+    except Exception as e:
+        logger.error(f"Import error: {e}")
+        return {
+            "success": False,
+            "message": f"Import failed: {str(e)}",
+            "cve_id": request.cve_id
+        }
+
+@router.get("/")
+async def get_cves(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    severity: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get CVEs from local database"""
+    
+    query = db.query(CVE)
+    
+    if severity and severity.upper() in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
+        query = query.filter(CVE.severity_level == severity.upper())
+    
+    total = query.count()
+    cves = query.order_by(CVE.published_date.desc()).offset(skip).limit(limit).all()
+    
+    return {
+        "results": [
+            {
+                **cve.to_dict(),
+                "source": "Local Database",
+                "can_import": False,
+                "nvd_link": f"https://nvd.nist.gov/vuln/detail/{cve.cve_id}"
+            } for cve in cves
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "source": "Local Database"
+    }
+
+@router.get("/{cve_id}")
+async def get_cve(cve_id: str, db: Session = Depends(get_db)):
+    """Get specific CVE by ID from local database"""
+    cve = db.query(CVE).filter(CVE.cve_id == cve_id).first()
+    if not cve:
+        raise HTTPException(status_code=404, detail="CVE not found in local database")
+    
+    result = cve.to_dict()
+    result.update({
+        "source": "Local Database",
+        "nvd_link": f"https://nvd.nist.gov/vuln/detail/{cve_id}"
+    })
+    
+    return result
+
+@router.get("/stats/summary")
+async def get_cve_stats(db: Session = Depends(get_db)):
+    """Get CVE statistics from local database"""
+    
+    total = db.query(CVE).count()
+    critical = db.query(CVE).filter(CVE.severity_level == "CRITICAL").count()
+    high = db.query(CVE).filter(CVE.severity_level == "HIGH").count()
+    medium = db.query(CVE).filter(CVE.severity_level == "MEDIUM").count()
+    low = db.query(CVE).filter(CVE.severity_level == "LOW").count()
+    
+    return {
+        "total_cves": total,
+        "by_severity": {
+            "critical": critical,
+            "high": high,
+            "medium": medium,
+            "low": low
+        },
+        "source": "Local Database"
+    }

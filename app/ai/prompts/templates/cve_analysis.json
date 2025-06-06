@@ -1,0 +1,12 @@
+{
+    "name": "cve_analysis",
+    "description": "Analyze a CVE and provide detailed information about its impact and mitigation",
+    "template": "Please analyze the following CVE and provide a detailed assessment:\n\nCVE ID: {cve_id}\nDescription: {description}\n\nPlease provide:\n1. Severity assessment\n2. Potential impact\n3. Affected systems\n4. Recommended mitigation steps\n5. Additional security considerations\n\nFormat the response in a clear, structured manner.",
+    "variables": ["cve_id", "description"],
+    "metadata": {
+        "category": "security",
+        "model": "llama3.1",
+        "max_tokens": 2048,
+        "temperature": 0.7
+    }
+} 

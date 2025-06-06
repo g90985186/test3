@@ -1,0 +1,12 @@
+{
+    "name": "poc_generation",
+    "description": "Generate a Python PoC code for a CVE analysis",
+    "template": "Generate a Python Proof of Concept (PoC) code for the following CVE:\n\nCVE ID: {cve_id}\nDescription: {description}\nVulnerability Type: {vulnerability_type}\nAffected Component: {affected_component}\n\nPlease provide:\n1. A complete, working Python script that demonstrates the vulnerability\n2. Required dependencies and setup instructions\n3. Usage instructions\n4. Safety warnings and disclaimers\n5. Comments explaining the code\n\nFormat the response as a complete Python script with proper documentation.",
+    "variables": ["cve_id", "description", "vulnerability_type", "affected_component"],
+    "metadata": {
+        "category": "security",
+        "model": "codellama",
+        "max_tokens": 4096,
+        "temperature": 0.3
+    }
+} 

@@ -1,0 +1,221 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
+from datetime import datetime
+import uuid
+import logging
+from app.database import get_db
+from app.services.ai_service import ai_service
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+# Simple in-memory storage
+chat_sessions = {}
+chat_messages = {}
+
+class ChatMessage(BaseModel):
+    message: str = Field(..., description="User message")
+    session_id: Optional[str] = Field(None, description="Chat session ID")
+    context_cve_ids: Optional[List[str]] = Field(None, description="CVE IDs for context")
+    conversation_type: str = Field("general", description="Type: general, cve_specific, analysis, help")
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: str
+    timestamp: datetime
+    context_used: List[str] = []
+    suggestions: List[str] = []
+    metadata: Dict[str, Any] = {}
+
+@router.post("/", response_model=ChatResponse)
+async def send_chat_message(message: ChatMessage):
+    """Send a chat message and get AI response using Local LLM"""
+    try:
+        session_id = message.session_id or str(uuid.uuid4())
+        
+        # Get conversation history for context
+        history = ""
+        if session_id in chat_messages:
+            recent_messages = chat_messages[session_id][-3:]  # Last 3 messages for context
+            history_parts = []
+            for msg in recent_messages:
+                history_parts.append(f"User: {msg['user']}")
+                history_parts.append(f"Assistant: {msg['assistant']}")
+            history = "\n".join(history_parts)
+        
+        # Prepare context based on conversation type and CVE IDs
+        context = "You are an AI assistant for the CVE Analysis Platform. Help users with CVE analysis, security questions, and platform features."
+        if message.context_cve_ids:
+            context += f"\nCVE Context: {', '.join(message.context_cve_ids)}"
+        
+        # Get AI response using local LLM
+        ai_response = await ai_service.chat_response(
+            user_input=message.message,
+            context=context,
+            history=history
+        )
+        
+        if ai_response["success"]:
+            response_text = ai_response["response"]
+            logger.info(f"AI response generated in {ai_response['processing_time']:.2f}s using {ai_response['model']}")
+        else:
+            # Fallback to hardcoded responses if AI fails
+            response_text = _get_fallback_response(message.message)
+            logger.warning(f"AI fallback used: {ai_response.get('error', 'Unknown error')}")
+        
+        # Store session
+        if session_id not in chat_sessions:
+            chat_sessions[session_id] = {
+                "created_at": datetime.utcnow(),
+                "message_count": 0
+            }
+        
+        chat_sessions[session_id]["message_count"] += 1
+        chat_sessions[session_id]["last_activity"] = datetime.utcnow()
+        
+        # Store message
+        if session_id not in chat_messages:
+            chat_messages[session_id] = []
+        
+        chat_messages[session_id].append({
+            "user": message.message,
+            "assistant": response_text,
+            "timestamp": datetime.utcnow()
+        })
+        
+        # Generate context-aware suggestions
+        suggestions = _generate_suggestions(message.message, message.conversation_type)
+        
+        response = ChatResponse(
+            response=response_text,
+            session_id=session_id,
+            timestamp=datetime.utcnow(),
+            context_used=message.context_cve_ids or [],
+            suggestions=suggestions,
+            metadata={
+                "conversation_type": message.conversation_type,
+                "ai_model": ai_response.get("model", "fallback"),
+                "processing_time": ai_response.get("processing_time", 0)
+            }
+        )
+        
+        logger.info(f"Chat message processed for session {session_id}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to process chat message")
+
+def _get_fallback_response(user_message: str) -> str:
+    """Provide fallback responses when AI is unavailable"""
+    message_lower = user_message.lower()
+    
+    if any(word in message_lower for word in ["cve", "vulnerability", "security"]):
+        return "I'm here to help with CVE analysis and security questions. The AI system is currently initializing - please try again in a moment, or browse the CVE database using the search feature."
+    
+    elif any(word in message_lower for word in ["help", "how", "what"]):
+        return "I can help you with CVE analysis, vulnerability assessment, and platform navigation. Available features include CVE search, analysis reports, watchlists, and security insights."
+    
+    elif any(word in message_lower for word in ["hello", "hi", "hey"]):
+        return "Hello! I'm your CVE Analysis Platform assistant. I can help you search for vulnerabilities, analyze security threats, and navigate the platform. What would you like to explore?"
+    
+    else:
+        return "I'm here to assist with CVE analysis and cybersecurity questions. The AI service is currently initializing. Please try asking about CVE search, vulnerability analysis, or platform features."
+
+def _generate_suggestions(user_message: str, conversation_type: str) -> List[str]:
+    """Generate contextual suggestions based on user message"""
+    message_lower = user_message.lower()
+    
+    if "cve" in message_lower:
+        return [
+            "Search for recent critical CVEs",
+            "Analyze CVE impact and mitigation",
+            "View CVE trends and statistics"
+        ]
+    elif any(word in message_lower for word in ["search", "find", "look"]):
+        return [
+            "Search CVEs by keyword",
+            "Filter by severity level",
+            "Browse recent vulnerabilities"
+        ]
+    elif any(word in message_lower for word in ["help", "how", "tutorial"]):
+        return [
+            "Getting started guide",
+            "CVE analysis tutorial",
+            "Platform feature overview"
+        ]
+    else:
+        return [
+            "Search for CVEs",
+            "View dashboard",
+            "Get platform help",
+            "Analyze vulnerabilities"
+        ]
+
+@router.get("/sessions")
+async def get_chat_sessions():
+    """Get all active chat sessions"""
+    sessions = []
+    for session_id, data in chat_sessions.items():
+        sessions.append({
+            "session_id": session_id,
+            "created_at": data["created_at"],
+            "last_activity": data.get("last_activity", data["created_at"]),
+            "message_count": data["message_count"]
+        })
+    return {"sessions": sessions, "total": len(sessions)}
+
+@router.get("/history")
+async def get_chat_history(session_id: Optional[str] = None, limit: int = 50):
+    """Get chat history for a session"""
+    if session_id and session_id in chat_messages:
+        messages = chat_messages[session_id][-limit:]
+        return {"messages": messages, "total": len(messages), "session_id": session_id}
+    elif not session_id:
+        # Return all recent messages
+        all_messages = []
+        for sid, msgs in chat_messages.items():
+            for msg in msgs:
+                msg_copy = msg.copy()
+                msg_copy["session_id"] = sid
+                all_messages.append(msg_copy)
+        all_messages.sort(key=lambda x: x["timestamp"], reverse=True)
+        return {"messages": all_messages[:limit], "total": len(all_messages)}
+    else:
+        return {"messages": [], "total": 0, "session_id": session_id}
+
+@router.get("/stats")
+async def get_chat_stats():
+    """Get chat system statistics"""
+    total_sessions = len(chat_sessions)
+    total_messages = sum(len(msgs) for msgs in chat_messages.values())
+    
+    return {
+        "total_sessions": total_sessions,
+        "total_messages": total_messages,
+        "average_messages_per_session": total_messages / max(total_sessions, 1),
+        "ai_service_status": "active" if ai_service.is_initialized else "initializing"
+    }
+
+@router.delete("/sessions/{session_id}")
+async def delete_chat_session(session_id: str):
+    """Delete a chat session and its history"""
+    if session_id in chat_sessions:
+        del chat_sessions[session_id]
+    if session_id in chat_messages:
+        del chat_messages[session_id]
+    
+    return {"message": "Session deleted successfully"}
+
+@router.get("/health")
+async def chat_health():
+    """Check chat service health"""
+    ai_stats = await ai_service.get_service_stats()
+    return {
+        "chat_service": "healthy",
+        "ai_service": ai_stats,
+        "active_sessions": len(chat_sessions),
+        "total_messages": sum(len(msgs) for msgs in chat_messages.values())
+    }

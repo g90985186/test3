@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVE Analysis Platform - AI Chat</title>
+    <style>
+        .chat-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: 20px;
+        }
+
+        .message.assistant .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            margin-right: 20px;
+        }
+
+        .message-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .user .message-avatar {
+            background: #4CAF50;
+            color: white;
+            order: 2;
+            margin-left: 10px;
+        }
+
+        .assistant .message-avatar {
+            background: #2196F3;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .send-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .suggestions {
+            padding: 0 20px 10px;
+            background: white;
+        }
+
+        .suggestion-chip {
+            display: inline-block;
+            background: #f0f0f0;
+            padding: 6px 12px;
+            margin: 4px;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .suggestion-chip:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px 0;
+        }
+
+        .typing-dots {
+            display: inline-block;
+        }
+
+        .typing-dots span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin: 0 2px;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .status-indicator {
+            padding: 10px 20px;
+            background: #e8f5e8;
+            border-left: 4px solid #4CAF50;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .status-indicator.warning {
+            background: #fff8e1;
+            border-left-color: #ff9800;
+        }
+
+        .status-indicator.error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .welcome-message h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .quick-action {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .quick-action:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>🤖 CVE Analysis AI Assistant</h2>
+            <p>Ask me about vulnerabilities, security analysis, or platform features</p>
+        </div>
+
+        <div id="status-indicator" class="status-indicator" style="display: none;">
+            <span id="status-text">Connecting to AI service...</span>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="welcome-message">
+                <h3>Welcome to CVE Analysis AI Chat</h3>
+                <p>I can help you with vulnerability analysis, CVE research, and platform navigation.</p>
+                <div class="quick-actions">
+                    <button class="quick-action" onclick="sendQuickMessage('Show me recent critical CVEs')">Recent Critical CVEs</button>
+                    <button class="quick-action" onclick="sendQuickMessage('How do I search for vulnerabilities?')">How to Search</button>
+                    <button class="quick-action" onclick="sendQuickMessage('Explain CVSS scoring')">CVSS Scoring</button>
+                    <button class="quick-action" onclick="sendQuickMessage('What platform features are available?')">Platform Features</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="suggestions" id="suggestions" style="display: none;"></div>
+
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="message assistant">
+                <div class="message-avatar">AI</div>
+                <div class="message-bubble">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <form class="chat-input-form" id="chat-form">
+                <input 
+                    type="text" 
+                    class="chat-input" 
+                    id="chat-input" 
+                    placeholder="Ask about CVEs, security analysis, or platform features..."
+                    maxlength="500"
+                >
+                <button type="submit" class="send-button" id="send-button">
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        class CVEChatInterface {
+            constructor() {
+                this.sessionId = this.generateSessionId();
+                this.messages = [];
+                this.isTyping = false;
+                
+                this.initializeElements();
+                this.attachEventListeners();
+                this.checkAIServiceStatus();
+            }
+
+            initializeElements() {
+                this.chatMessages = document.getElementById('chat-messages');
+                this.chatForm = document.getElementById('chat-form');
+                this.chatInput = document.getElementById('chat-input');
+                this.sendButton = document.getElementById('send-button');
+                this.typingIndicator = document.getElementById('typing-indicator');
+                this.statusIndicator = document.getElementById('status-indicator');
+                this.statusText = document.getElementById('status-text');
+                this.suggestionsContainer = document.getElementById('suggestions');
+            }
+
+            attachEventListeners() {
+                this.chatForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.sendMessage();
+                });
+
+                this.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                // Auto-resize chat input
+                this.chatInput.addEventListener('input', () => {
+                    this.chatInput.style.height = 'auto';
+                    this.chatInput.style.height = Math.min(this.chatInput.scrollHeight, 100) + 'px';
+                });
+            }
+
+            generateSessionId() {
+                return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+
+            async checkAIServiceStatus() {
+                try {
+                    const response = await fetch('/api/v1/chat/health');
+                    const data = await response.json();
+                    
+                    if (data.ai_service?.service_status === 'active') {
+                        this.showStatus('AI service is ready', 'success');
+                        setTimeout(() => this.hideStatus(), 3000);
+                    } else {
+                        this.showStatus('AI service is initializing...', 'warning');
+                    }
+                } catch (error) {
+                    this.showStatus('AI service unavailable - using fallback responses', 'error');
+                }
+            }
+
+            showStatus(message, type = 'info') {
+                this.statusText.textContent = message;
+                this.statusIndicator.className = `status-indicator ${type}`;
+                this.statusIndicator.style.display = 'block';
+            }
+
+            hideStatus() {
+                this.statusIndicator.style.display = 'none';
+            }
+
+            async sendMessage() {
+                const message = this.chatInput.value.trim();
+                if (!message || this.isTyping) return;
+
+                // Add user message to chat
+                this.addMessage(message, 'user');
+                this.chatInput.value = '';
+                this.setTyping(true);
+
+                try {
+                    const response = await fetch('/api/v1/chat/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            session_id: this.sessionId,
+                            conversation_type: 'general'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    // Add AI response to chat
+                    this.addMessage(data.response, 'assistant', data.metadata);
+                    
+                    // Show suggestions
+                    this.showSuggestions(data.suggestions);
+                    
+                } catch (error) {
+                    console.error('Chat error:', error);
+                    this.addMessage(
+                        'Sorry, I encountered an error. Please try again or check if the AI service is running.',
+                        'assistant',
+                        { error: true }
+                    );
+                } finally {
+                    this.setTyping(false);
+                }
+            }
+
+            addMessage(content, sender, metadata = {}) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = sender === 'user' ? 'U' : 'AI';
+
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble';
+                
+                const messageContent = document.createElement('div');
+                messageContent.textContent = content;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                timeDiv.textContent = new Date().toLocaleTimeString();
+                
+                bubble.appendChild(messageContent);
+                bubble.appendChild(timeDiv);
+                
+                // Add metadata info for AI responses
+                if (sender === 'assistant' && metadata.ai_model) {
+                    const metaDiv = document.createElement('div');
+                    metaDiv.style.fontSize = '10px';
+                    metaDiv.style.opacity = '0.6';
+                    metaDiv.style.marginTop = '4px';
+                    metaDiv.textContent = `Model: ${metadata.ai_model}`;
+                    bubble.appendChild(metaDiv);
+                }
+
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(bubble);
+
+                // Remove welcome message if it exists
+                const welcomeMessage = this.chatMessages.querySelector('.welcome-message');
+                if (welcomeMessage) {
+                    welcomeMessage.remove();
+                }
+
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            setTyping(isTyping) {
+                this.isTyping = isTyping;
+                this.sendButton.disabled = isTyping;
+                this.chatInput.disabled = isTyping;
+                
+                if (isTyping) {
+                    this.typingIndicator.style.display = 'block';
+                    this.scrollToBottom();
+                } else {
+                    this.typingIndicator.style.display = 'none';
+                }
+            }
+
+            showSuggestions(suggestions) {
+                if (!suggestions || suggestions.length === 0) {
+                    this.suggestionsContainer.style.display = 'none';
+                    return;
+                }
+
+                this.suggestionsContainer.innerHTML = '';
+                suggestions.forEach(suggestion => {
+                    const chip = document.createElement('span');
+                    chip.className = 'suggestion-chip';
+                    chip.textContent = suggestion;
+                    chip.addEventListener('click', () => {
+                        this.chatInput.value = suggestion;
+                        this.sendMessage();
+                        this.suggestionsContainer.style.display = 'none';
+                    });
+                    this.suggestionsContainer.appendChild(chip);
+                });
+
+                this.suggestionsContainer.style.display = 'block';
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // Quick message function for welcome buttons
+        function sendQuickMessage(message) {
+            if (window.chatInterface) {
+                window.chatInterface.chatInput.value = message;
+                window.chatInterface.sendMessage();
+            }
+        }
+
+        // Initialize chat when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.chatInterface = new CVEChatInterface();
+        });
+    </script>
+</body>
+</html>

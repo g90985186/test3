@@ -1,0 +1,49 @@
+{
+    "test_cases": [
+        {
+            "name": "cve_analysis_basic",
+            "prompt": "Analyze the following CVE: CVE-2024-1234. This is a critical vulnerability in the authentication system that allows unauthorized access.",
+            "expected_output": "This is a critical security vulnerability in the authentication system. The vulnerability allows unauthorized users to bypass authentication mechanisms and gain access to protected resources. Immediate action is required to patch the system and implement additional security measures.",
+            "parameters": {
+                "temperature": 0.7,
+                "max_tokens": 2048
+            }
+        },
+        {
+            "name": "vulnerability_assessment",
+            "prompt": "Assess the risk level of a SQL injection vulnerability in a web application's user authentication system.",
+            "expected_output": "This SQL injection vulnerability in the user authentication system poses a high risk to the application's security. It could allow attackers to bypass authentication, access sensitive data, or execute arbitrary SQL commands. The vulnerability should be patched immediately by implementing proper input validation and using parameterized queries.",
+            "parameters": {
+                "temperature": 0.5,
+                "max_tokens": 2048
+            }
+        },
+        {
+            "name": "mitigation_strategy",
+            "prompt": "Provide a detailed mitigation strategy for a cross-site scripting (XSS) vulnerability in a web application.",
+            "expected_output": "To mitigate this XSS vulnerability, implement the following measures: 1) Input validation and sanitization, 2) Output encoding, 3) Content Security Policy (CSP), 4) HttpOnly and Secure flags for cookies, 5) Regular security testing and code reviews.",
+            "parameters": {
+                "temperature": 0.3,
+                "max_tokens": 1024
+            }
+        },
+        {
+            "name": "impact_analysis",
+            "prompt": "Analyze the potential impact of a buffer overflow vulnerability in a network service.",
+            "expected_output": "A buffer overflow in a network service could lead to: 1) Remote code execution, 2) Service disruption, 3) Unauthorized access, 4) Data corruption, 5) System compromise. This is a critical vulnerability that requires immediate attention.",
+            "parameters": {
+                "temperature": 0.6,
+                "max_tokens": 1536
+            }
+        },
+        {
+            "name": "technical_details",
+            "prompt": "Provide technical details about a zero-day vulnerability in a web server.",
+            "expected_output": "This zero-day vulnerability affects the web server's request handling mechanism. It occurs due to improper validation of HTTP headers, allowing attackers to inject malicious code. The vulnerability is present in versions 1.0 through 2.1 of the server software.",
+            "parameters": {
+                "temperature": 0.4,
+                "max_tokens": 1024
+            }
+        }
+    ]
+} 

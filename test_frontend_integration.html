@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVE Analysis Platform - API Integration Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">CVE Analysis Platform - API Integration Test</h1>
+        
+        <div class="space-y-6">
+            <!-- Authentication Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Authentication Test</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Username:</label>
+                        <input type="text" id="username" value="admin" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Password:</label>
+                        <input type="password" id="password" value="admin123" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                    </div>
+                    <button onclick="testLogin()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Test Login</button>
+                    <div id="auth-result" class="mt-2"></div>
+                </div>
+            </div>
+            
+            <!-- CVE Search Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">CVE Search Test</h2>
+                <div class="space-y-4">
+                    <button onclick="testCVESearch()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Test CVE Search</button>
+                    <div id="cve-result" class="mt-2"></div>
+                </div>
+            </div>
+            
+            <!-- Analysis Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Analysis Test</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">CVE ID:</label>
+                        <input type="text" id="analysis-cve-id" value="CVE-2024-0001" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                    </div>
+                    <button onclick="testAnalysis()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Test Analysis</button>
+                    <div id="analysis-result" class="mt-2"></div>
+                </div>
+            </div>
+            
+            <!-- Dashboard Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Dashboard Test</h2>
+                <div class="space-y-4">
+                    <button onclick="testDashboard()" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Test Dashboard</button>
+                    <div id="dashboard-result" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api/v1';
+        let authToken = localStorage.getItem('authToken');
+        
+        function showResult(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="p-3 rounded ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${message}</div>`;
+        }
+        
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    localStorage.setItem('authToken', authToken);
+                    showResult('auth-result', `✅ Login successful! Token: ${authToken.substring(0, 20)}...`);
+                } else {
+                    const error = await response.json();
+                    showResult('auth-result', `❌ Login failed: ${error.detail || response.statusText}`, true);
+                }
+            } catch (error) {
+                showResult('auth-result', `❌ Login error: ${error.message}`, true);
+            }
+        }
+        
+        async function testCVESearch() {
+            if (!authToken) {
+                showResult('cve-result', '❌ Please login first', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/cve/?limit=5`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('cve-result', `✅ CVE search successful! Found ${data.items ? data.items.length : 'data'} CVEs`);
+                } else {
+                    const error = await response.json();
+                    showResult('cve-result', `❌ CVE search failed: ${error.detail || response.statusText}`, true);
+                }
+            } catch (error) {
+                showResult('cve-result', `❌ CVE search error: ${error.message}`, true);
+            }
+        }
+        
+        async function testAnalysis() {
+            if (!authToken) {
+                showResult('analysis-result', '❌ Please login first', true);
+                return;
+            }
+            
+            const cveId = document.getElementById('analysis-cve-id').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/analysis/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cve_id: cveId,
+                        analysis_type: 'comprehensive'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('analysis-result', `✅ Analysis successful for ${cveId}! Model: ${data.model_used || 'AI'}`);
+                } else {
+                    const error = await response.json();
+                    showResult('analysis-result', `❌ Analysis failed: ${error.detail || response.statusText}`, true);
+                }
+            } catch (error) {
+                showResult('analysis-result', `❌ Analysis error: ${error.message}`, true);
+            }
+        }
+        
+        async function testDashboard() {
+            if (!authToken) {
+                showResult('dashboard-result', '❌ Please login first', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/metrics`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('dashboard-result', `✅ Dashboard metrics loaded! Total CVEs: ${data.total_cves || 'N/A'}`);
+                } else {
+                    const error = await response.json();
+                    showResult('dashboard-result', `❌ Dashboard failed: ${error.detail || response.statusText}`, true);
+                }
+            } catch (error) {
+                showResult('dashboard-result', `❌ Dashboard error: ${error.message}`, true);
+            }
+        }
+        
+        // Auto-login if token exists
+        if (authToken) {
+            document.getElementById('auth-result').innerHTML = '<div class="p-3 rounded bg-blue-100 text-blue-700">✅ Already authenticated</div>';
+        }
+    </script>
+</body>
+</html> 

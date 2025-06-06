@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Ollama AI Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cve-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    command: >
+      sh -c "
+        ollama serve &
+        sleep 10 &&
+        ollama pull llama3.1:8b &&
+        ollama pull gemma2:9b &&
+        ollama pull codellama:7b &&
+        wait
+      "
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: cve-postgres
+    environment:
+      POSTGRES_DB: cvedb
+      POSTGRES_USER: cveuser
+      POSTGRES_PASSWORD: cvepassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: cve-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # FastAPI Application
+  app:
+    build: .
+    container_name: cve-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://cveuser:cvepassword@postgres:5432/cvedb
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - postgres
+      - redis
+      - ollama
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: cve-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:

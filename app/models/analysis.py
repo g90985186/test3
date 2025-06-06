@@ -1,0 +1,60 @@
+from sqlalchemy import Column, String, DateTime, Integer, JSON, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from app.database import Base
+import uuid
+from datetime import datetime
+
+class Analysis(Base):
+    __tablename__ = "analysis_results"
+    
+    # Change UUID to String for SQLite compatibility
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    cve_id = Column(String(36), ForeignKey("cves.id"), nullable=False)
+    attack_vectors = Column(JSON)
+    exploitation_complexity = Column(String(10))
+    privilege_required = Column(String(10))
+    user_interaction = Column(String(10))
+    impact_analysis = Column(JSON)
+    mitigation_strategies = Column(JSON)
+    risk_score = Column(Integer)
+    confidence_score = Column(Integer)
+    ai_model_used = Column(String(50))
+    analysis_type = Column(String(20))
+    raw_analysis = Column(Text)
+    analyzed_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    cve = relationship("CVE", backref="analyses")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,  # Already a string now
+            "cve_id": self.cve_id,
+            "attack_vectors": self.attack_vectors,
+            "exploitation_complexity": self.exploitation_complexity,
+            "privilege_required": self.privilege_required,
+            "user_interaction": self.user_interaction,
+            "impact_analysis": self.impact_analysis,
+            "mitigation_strategies": self.mitigation_strategies,
+            "risk_score": self.risk_score,
+            "confidence_score": self.confidence_score,
+            "ai_model_used": self.ai_model_used,
+            "analysis_type": self.analysis_type,
+            "analyzed_at": self.analyzed_at.isoformat() if self.analyzed_at else None
+        }
+
+class ThreatIntelligence(Base):
+    __tablename__ = "threat_intelligence"
+    
+    # Change UUID to String for SQLite compatibility
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    cve_id = Column(String(36), ForeignKey("cves.id"), nullable=False)
+    exploit_available = Column(JSON)
+    exploit_maturity = Column(String(20))
+    attack_patterns = Column(JSON)
+    iocs = Column(JSON)
+    threat_actors = Column(JSON)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    cve = relationship("CVE", backref="threat_intel")

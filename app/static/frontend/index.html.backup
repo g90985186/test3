@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVE Analysis Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom styles */
+        .section {
+            transition: all 0.3s ease-in-out;
+        }
+        .nav-btn.active {
+            background-color: rgba(59, 130, 246, 0.5);
+        }
+        .vulnerability-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .vulnerability-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-blue-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-shield-alt text-2xl mr-3"></i>
+                    <h1 class="text-xl font-bold">CVE Analysis Platform</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="showDashboard()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+                        <i class="fas fa-chart-line mr-2"></i>Dashboard
+                    </button>
+                    <button onclick="showCVESearch()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+                        <i class="fas fa-search mr-2"></i>CVE Search
+                    </button>
+                    <button onclick="showAnalysis()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+                        <i class="fas fa-brain mr-2"></i>AI Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Dashboard Section -->
+        <div id="dashboard-section" class="section">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Security Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Critical CVEs</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="critical-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-chart-line text-blue-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Total CVEs</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="total-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-robot text-green-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">AI Analyses</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="analysis-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-clock text-yellow-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Recent CVEs</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="recent-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent CVEs Table -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b">
+                        <h3 class="text-lg font-medium text-gray-900">Recent CVEs</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CVE ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CVSS Score</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-cves-table" class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                        Loading...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CVE Search Section -->
+        <div id="cve-search-section" class="section hidden">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Hybrid CVE Search</h2>
+                <p class="text-gray-600 mb-6">Search CVEs from local database and/or live NVD feed</p>
+                
+                <!-- Search Form -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Search CVEs</label>
+                            <input type="text" id="cve-search-input" placeholder="CVE-2024-1234 or keywords" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Severity Filter</label>
+                            <select id="severity-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Search Source</label>
+                            <select id="search-type-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="both">🔄 Both (Local + NVD)</option>
+                                <option value="local">💾 Local Database</option>
+                                <option value="nvd">🌐 NVD Live</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="searchCVEs()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 w-full">
+                                <i class="fas fa-search mr-2"></i>Search
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Tips -->
+                    <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <h4 class="text-sm font-medium text-blue-900 mb-2">Search Tips:</h4>
+                        <ul class="text-xs text-blue-700 space-y-1">
+                            <li>• Use specific CVE IDs (e.g., CVE-2024-1234) for exact matches</li>
+                            <li>• Use keywords (e.g., "buffer overflow", "SQL injection") for broader search</li>
+                            <li>• "Both" searches local database first, then NVD live for latest data</li>
+                            <li>• NVD Live may be slower but includes the most recent vulnerabilities</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="search-results" class="bg-white rounded-lg shadow hidden">
+                    <div class="px-6 py-4 border-b">
+                        <h3 class="text-lg font-medium text-gray-900">Search Results</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="search-results-content">
+                            <!-- Dynamic content populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Analysis Section -->
+        <div id="analysis-section" class="section hidden">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">AI-Powered CVE Analysis</h2>
+                
+                <!-- Analysis Form -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CVE ID</label>
+                            <input type="text" id="analysis-cve-input" placeholder="Enter CVE ID (e.g., CVE-2024-1234)" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Type</label>
+                            <select id="analysis-type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="comprehensive">Comprehensive Analysis</option>
+                                <option value="quick">Quick Analysis</option>
+                                <option value="technical">Technical Deep Dive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button onclick="startAnalysis()" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                            <i class="fas fa-brain mr-2"></i>Start AI Analysis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Analysis Results -->
+                <div id="analysis-results" class="bg-white rounded-lg shadow hidden">
+                    <div class="px-6 py-4 border-b">
+                        <h3 class="text-lg font-medium text-gray-900">Analysis Results</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="analysis-content">
+                            <!-- Dynamic content -->
+                            <p class="text-gray-500">Enter a CVE ID and click "Start AI Analysis" to begin...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 flex items-center">
+            <i class="fas fa-spinner fa-spin text-blue-600 text-2xl mr-3"></i>
+            <span class="text-gray-700">Processing...</span>
+        </div>
+    </div>
+
+    <script>
+        // Inline JavaScript to ensure it loads
+        console.log('CVE Analysis Platform loaded');
+        
+        // Global variables
+        let currentCVE = null;
+        let currentAnalysis = null;
+        let lastSearchType = "both";
+
+        // API base URL
+        const API_BASE = '/api/v1';
+
+        // Navigation functions
+        function showDashboard() {
+            hideAllSections();
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            loadDashboardData();
+        }
+
+        function showCVESearch() {
+            hideAllSections();
+            document.getElementById('cve-search-section').classList.remove('hidden');
+        }
+
+        function showAnalysis() {
+            hideAllSections();
+            document.getElementById('analysis-section').classList.remove('hidden');
+        }
+
+        function hideAllSections() {
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(section => section.classList.add('hidden'));
+        }
+
+        // Enhanced CVE Search functions
+        async function searchCVEs() {
+            console.log('searchCVEs function called');
+            
+            const query = document.getElementById('cve-search-input').value.trim();
+            const severity = document.getElementById('severity-filter').value;
+            const searchType = document.getElementById('search-type-filter')?.value || 'both';
+            
+            console.log('Search params:', { query, severity, searchType });
+            
+            // Show loading
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/cve/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query || null,
+                        severity: severity || null,
+                        search_type: searchType,
+                        limit: 20
+                    })
+                });
+                
+                console.log('Search response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Search data:', data);
+                    displayHybridSearchResults(data);
+                } else {
+                    const error = await response.json();
+                    console.error('Search error:', error);
+                    showError(`Search failed: ${error.detail || 'Unknown error'}`);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('Search failed. Please check your connection and try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function displayHybridSearchResults(data) {
+            const resultsDiv = document.getElementById('search-results');
+            const contentDiv = document.getElementById('search-results-content');
+            
+            if (!resultsDiv || !contentDiv) {
+                console.error('Search results elements not found');
+                showError('Search results area not found in the page');
+                return;
+            }
+            
+            lastSearchType = data.search_type;
+            
+            let html = '';
+            
+            // Show search summary
+            html += `<div class="mb-6 p-4 bg-blue-50 rounded-lg">
+                <h4 class="font-medium text-blue-900">Search Results Summary</h4>
+                <div class="mt-2 text-sm text-blue-700">
+                    <span class="mr-4">Query: "${data.query || 'All CVEs'}"</span>
+                    <span class="mr-4">Severity: ${data.severity || 'All'}</span>
+                    <span class="mr-4">Source: ${getSearchTypeLabel(data.search_type)}</span>
+                </div>
+                <div class="mt-2 text-sm">
+                    <span class="mr-4 text-green-600">Local: ${data.total_local || 0} results</span>
+                    <span class="text-blue-600">NVD Live: ${data.total_nvd || 0} results</span>
+                </div>
+            </div>`;
+            
+            // Show errors if any
+            if (data.errors && data.errors.length > 0) {
+                html += `<div class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400">
+                    <h5 class="font-medium text-yellow-800">Search Warnings:</h5>
+                    ${data.errors.map(error => `<p class="text-sm text-yellow-700">${error}</p>`).join('')}
+                </div>`;
+            }
+            
+            // Local results section
+            if (data.search_type === 'local' || data.search_type === 'both') {
+                html += createResultsSection('Local Database Results', data.local_results || [], 'local');
+            }
+            
+            // NVD results section
+            if (data.search_type === 'nvd' || data.search_type === 'both') {
+                html += createResultsSection('NVD Live Results', data.nvd_results || [], 'nvd');
+            }
+            
+            if ((data.total_local || 0) === 0 && (data.total_nvd || 0) === 0) {
+                html += `<div class="text-center py-8">
+                    <i class="fas fa-search text-gray-300 text-4xl mb-4"></i>
+                    <p class="text-gray-500">No CVEs found matching your criteria</p>
+                    <p class="text-sm text-gray-400 mt-2">Try different keywords or search in NVD Live</p>
+                </div>`;
+            }
+            
+            contentDiv.innerHTML = html;
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function createResultsSection(title, results, section) {
+            if (!results || results.length === 0) {
+                return `<div class="mb-6">
+                    <h4 class="font-medium text-gray-900 mb-3">${title}</h4>
+                    <p class="text-gray-500 text-sm">No results found</p>
+                </div>`;
+            }
+            
+            let html = `<div class="mb-6">
+                <h4 class="font-medium text-gray-900 mb-3">${title} (${results.length})</h4>
+                <div class="space-y-4">`;
+            
+            results.forEach(cve => {
+                html += createCVECard(cve, section);
+            });
+            
+            html += '</div></div>';
+            return html;
+        }
+
+        function createCVECard(cve, section) {
+            const severityColor = getSeverityColor(cve.severity_level);
+            const isNVD = section === 'nvd';
+            
+            return `
+                <div class="border rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center space-x-3">
+                            <h5 class="font-bold text-lg text-blue-600">${cve.cve_id}</h5>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${severityColor}">
+                                ${cve.severity_level || 'Unknown'}
+                            </span>
+                            <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+                                ${cve.source}
+                            </span>
+                        </div>
+                        <div class="flex space-x-2">
+                            ${isNVD && cve.can_import ? 
+                                `<button onclick="importCVE('${cve.cve_id}')" 
+                                        class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                                    <i class="fas fa-download mr-1"></i>Import
+                                </button>` : ''}
+                            <button onclick="analyzeCVE('${cve.cve_id}')" 
+                                    class="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700">
+                                <i class="fas fa-brain mr-1"></i>Analyze
+                            </button>
+                            ${cve.nvd_link ? 
+                                `<a href="${cve.nvd_link}" target="_blank" 
+                                   class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 inline-block">
+                                    <i class="fas fa-external-link-alt mr-1"></i>NVD
+                                </a>` : ''}
+                        </div>
+                    </div>
+                    
+                    <p class="text-gray-600 text-sm mb-3">${cve.description || 'No description available'}</p>
+                    
+                    <div class="flex justify-between items-center text-xs text-gray-500">
+                        <div class="flex space-x-4">
+                            ${cve.cvss_v3_score ? 
+                                `<span><strong>CVSS:</strong> ${cve.cvss_v3_score}</span>` : ''}
+                            ${cve.published_date ? 
+                                `<span><strong>Published:</strong> ${cve.published_date}</span>` : ''}
+                            ${cve.cwe_ids && cve.cwe_ids.length > 0 ? 
+                                `<span><strong>CWE:</strong> ${cve.cwe_ids.slice(0, 2).join(', ')}</span>` : ''}
+                        </div>
+                        ${isNVD && !cve.can_import ? 
+                            `<span class="text-green-600">${cve.import_status}</span>` : ''}
+                    </div>
+                </div>`;
+        }
+
+        // Import CVE from NVD
+        async function importCVE(cveId) {
+            if (!confirm(`Import ${cveId} from NVD into local database?`)) {
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/cve/import-from-nvd`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cve_id: cveId,
+                        force: false
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccess(`${cveId} imported successfully!`);
+                    // Refresh search results
+                    setTimeout(() => searchCVEs(), 1000);
+                } else {
+                    showError(`Import failed: ${result.message}`);
+                }
+                
+            } catch (error) {
+                console.error('Import error:', error);
+                showError('Import failed. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Dashboard functions
+        async function loadDashboardData() {
+            try {
+                showLoading();
+                
+                // Try to load CVE stats
+                try {
+                    const statsResponse = await fetch(`${API_BASE}/cve/stats/summary`);
+                    if (statsResponse.ok) {
+                        const statsData = await statsResponse.json();
+                        updateDashboardMetrics(statsData);
+                    }
+                } catch (e) {
+                    console.warn('Could not load CVE stats:', e);
+                }
+                
+                // Try to load dashboard metrics
+                try {
+                    const response = await fetch(`${API_BASE}/dashboard/metrics`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        updateDashboardMetrics(data);
+                    }
+                } catch (e) {
+                    console.warn('Could not load dashboard metrics:', e);
+                }
+                
+                loadRecentCVEs();
+                hideLoading();
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                hideLoading();
+            }
+        }
+
+        function updateDashboardMetrics(data) {
+            // Handle different data formats
+            if (data.by_severity) {
+                document.getElementById('critical-count').textContent = data.by_severity.critical || 0;
+                document.getElementById('total-count').textContent = data.total_cves || 0;
+            } else {
+                document.getElementById('critical-count').textContent = data.critical_count || 0;
+                document.getElementById('total-count').textContent = data.total_count || 0;
+            }
+            
+            document.getElementById('analysis-count').textContent = data.analysis_count || 0;
+            document.getElementById('recent-count').textContent = data.recent_count || 0;
+        }
+
+        async function loadRecentCVEs() {
+            try {
+                const response = await fetch(`${API_BASE}/cve/?limit=10`);
+                const data = await response.json();
+                
+                const tableBody = document.getElementById('recent-cves-table');
+                
+                if (!tableBody) {
+                    console.error('recent-cves-table element not found');
+                    return;
+                }
+                
+                if (data.results && data.results.length > 0) {
+                    tableBody.innerHTML = data.results.map(cve => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                ${cve.cve_id}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium rounded ${getSeverityColor(cve.severity_level)}">
+                                    ${cve.severity_level || 'Unknown'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${cve.cvss_v3_score || 'N/A'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${cve.published_date || 'Unknown'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <button onclick="analyzeCVE('${cve.cve_id}')" 
+                                        class="text-purple-600 hover:text-purple-900">
+                                    Analyze
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                No CVEs in local database yet. Try searching NVD Live!
+                            </td>
+                        </tr>`;
+                }
+            } catch (error) {
+                console.error('Error loading recent CVEs:', error);
+                const tableBody = document.getElementById('recent-cves-table');
+                if (tableBody) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center text-red-500">
+                                Error loading CVEs. Check if the backend is running.
+                            </td>
+                        </tr>`;
+                }
+            }
+        }
+
+        // AI Analysis functions
+        async function startAnalysis() {
+            const cveId = document.getElementById('analysis-cve-input').value.trim();
+            const analysisType = document.getElementById('analysis-type').value;
+            
+            if (!cveId) {
+                showError('Please enter a CVE ID');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                // First try to get CVE data
+                let cveData = null;
+                try {
+                    const cveResponse = await fetch(`${API_BASE}/cve/${cveId}`);
+                    if (cveResponse.ok) {
+                        cveData = await cveResponse.json();
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch CVE from local database:', e);
+                }
+                
+                // If not found locally, try to search for it
+                if (!cveData) {
+                    try {
+                        const searchResponse = await fetch(`${API_BASE}/cve/search`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                query: cveId,
+                                search_type: 'both',
+                                limit: 1
+                            })
+                        });
+                        
+                        if (searchResponse.ok) {
+                            const searchData = await searchResponse.json();
+                            if (searchData.local_results && searchData.local_results.length > 0) {
+                                cveData = searchData.local_results[0];
+                            } else if (searchData.nvd_results && searchData.nvd_results.length > 0) {
+                                cveData = searchData.nvd_results[0];
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Could not search for CVE:', e);
+                    }
+                }
+                
+                // Try analysis endpoint
+                try {
+                    const response = await fetch(`${API_BASE}/analysis/analyze`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            cve_id: cveId,
+                            analysis_type: analysisType
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        displayAnalysisResults(data);
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Analysis failed');
+                    }
+                } catch (analysisError) {
+                    console.error('Analysis endpoint error:', analysisError);
+                    
+                    // Fallback: show basic CVE information if we have it
+                    if (cveData) {
+                        displayBasicCVEInfo(cveData);
+                    } else {
+                        throw new Error('CVE not found and analysis service unavailable');
+                    }
+                }
+                
+                hideLoading();
+            } catch (error) {
+                console.error('Error starting analysis:', error);
+                hideLoading();
+                showError(`Failed to start analysis: ${error.message}`);
+            }
+        }
+
+        function displayAnalysisResults(data) {
+            const resultsDiv = document.getElementById('analysis-results');
+            const contentDiv = document.getElementById('analysis-content');
+            
+            if (!resultsDiv || !contentDiv) {
+                showError('Analysis results area not found');
+                return;
+            }
+            
+            contentDiv.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-medium text-gray-900">CVE ID</h4>
+                        <p class="text-gray-600">${data.cve_id}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900">Model Used</h4>
+                        <p class="text-gray-600">${data.model_used}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900">Analysis Results</h4>
+                        <pre class="bg-gray-100 p-4 rounded text-sm overflow-auto">${JSON.stringify(data.analysis, null, 2)}</pre>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function displayBasicCVEInfo(cveData) {
+            const resultsDiv = document.getElementById('analysis-results');
+            const contentDiv = document.getElementById('analysis-content');
+            
+            if (!resultsDiv || !contentDiv) {
+                showError('Analysis results area not found');
+                return;
+            }
+            
+            contentDiv.innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                        <p class="text-yellow-700">AI Analysis service unavailable. Showing basic CVE information:</p>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900">CVE ID</h4>
+                        <p class="text-gray-600">${cveData.cve_id}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900">Description</h4>
+                        <p class="text-gray-600">${cveData.description || 'No description available'}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900">Severity</h4>
+                        <span class="px-2 py-1 rounded text-sm font-medium ${getSeverityColor(cveData.severity_level)}">
+                            ${cveData.severity_level || 'Unknown'}
+                        </span>
+                    </div>
+                    ${cveData.cvss_v3_score ? `
+                    <div>
+                        <h4 class="font-medium text-gray-900">CVSS Score</h4>
+                        <p class="text-gray-600">${cveData.cvss_v3_score}</p>
+                    </div>
+                    ` : ''}
+                    <div>
+                        <h4 class="font-medium text-gray-900">Source</h4>
+                        <p class="text-gray-600">${cveData.source || 'Unknown'}</p>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function analyzeCVE(cveId) {
+            showAnalysis();
+            document.getElementById('analysis-cve-input').value = cveId;
+            setTimeout(() => startAnalysis(), 500);
+        }
+
+        // Utility functions
+        function getSearchTypeLabel(type) {
+            const labels = {
+                'both': 'Local + NVD Live',
+                'local': 'Local Database Only',
+                'nvd': 'NVD Live Only'
+            };
+            return labels[type] || type;
+        }
+
+        function getSeverityColor(severity) {
+            switch (severity?.toUpperCase()) {
+                case 'CRITICAL':
+                    return 'bg-red-100 text-red-800';
+                case 'HIGH':
+                    return 'bg-orange-100 text-orange-800';
+                case 'MEDIUM':
+                    return 'bg-yellow-100 text-yellow-800';
+                case 'LOW':
+                    return 'bg-green-100 text-green-800';
+                default:
+                    return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function showLoading() {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.remove('hidden');
+            }
+        }
+
+        function hideLoading() {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('hidden');
+            }
+        }
+
+        function showError(message) {
+            console.error('Error:', message);
+            alert('Error: ' + message);
+        }
+
+        function showSuccess(message) {
+            console.log('Success:', message);
+            alert('Success: ' + message);
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing application...');
+            
+            // Show dashboard by default
+            showDashboard();
+            
+            // Add event listeners
+            const searchInput = document.getElementById('cve-search-input');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchCVEs();
+                    }
+                });
+            }
+            
+            const analysisInput = document.getElementById('analysis-cve-input');
+            if (analysisInput) {
+                analysisInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        startAnalysis();
+                    }
+                });
+            }
+            
+            console.log('Application initialized');
+        });
+    </script>
+</body>
+</html>

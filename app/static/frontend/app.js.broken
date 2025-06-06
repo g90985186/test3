@@ -1,0 +1,358 @@
+// Enhanced AI Analysis functions with auto-import support
+// Add these functions to your app.js file
+
+async function startAnalysis() {
+    const cveId = document.getElementById('analysis-cve-input').value.trim();
+    const analysisType = document.getElementById('analysis-type').value;
+    
+    if (!cveId) {
+        showError('Please enter a CVE ID');
+        return;
+    }
+    
+    try {
+        showLoading();
+        
+        // Show a more informative loading message
+        updateLoadingMessage('Starting analysis for ' + cveId + '...');
+        
+        const response = await fetch(`${API_BASE}/analysis/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                cve_id: cveId,
+                analysis_type: analysisType,
+                auto_import: true  // Enable auto-import
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            displayEnhancedAnalysisResults(data);
+        } else {
+            const error = await response.json();
+            throw new Error(error.detail || 'Analysis failed');
+        }
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error starting analysis:', error);
+        hideLoading();
+        showError(`Failed to start analysis: ${error.message}`);
+    }
+}
+
+function displayEnhancedAnalysisResults(data) {
+    const resultsDiv = document.getElementById('analysis-results');
+    const contentDiv = document.getElementById('analysis-content');
+    
+    if (!resultsDiv || !contentDiv) {
+        showError('Analysis results area not found');
+        return;
+    }
+    
+    // Show import status if applicable
+    let importStatus = '';
+    if (data.auto_imported) {
+        importStatus = `
+            <div class="mb-4 p-3 bg-green-50 border-l-4 border-green-400">
+                <p class="text-sm text-green-700">
+                    <i class="fas fa-download mr-2"></i>CVE was automatically imported from NVD for analysis
+                </p>
+            </div>`;
+    } else if (data.source === "NVD Live (Not Imported)") {
+        importStatus = `
+            <div class="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400">
+                <p class="text-sm text-blue-700">
+                    <i class="fas fa-cloud mr-2"></i>Analysis performed on live NVD data (not saved locally)
+                </p>
+            </div>`;
+    }
+    
+    contentDiv.innerHTML = `
+        ${importStatus}
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h4 class="font-medium text-gray-900">CVE ID</h4>
+                    <p class="text-gray-600">${data.cve_id}</p>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-900">Data Source</h4>
+                    <p class="text-gray-600">${data.source}</p>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-900">AI Model Used</h4>
+                    <p class="text-gray-600">${data.model_used}</p>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-900">Analysis Type</h4>
+                    <p class="text-gray-600">${data.analysis_type || 'Comprehensive'}</p>
+                </div>
+            </div>
+            
+            ${data.note ? `
+                <div class="p-3 bg-yellow-50 border-l-4 border-yellow-400">
+                    <p class="text-sm text-yellow-700">${data.note}</p>
+                </div>
+            ` : ''}
+            
+            <div>
+                <h4 class="font-medium text-gray-900 mb-3">AI Analysis Results</h4>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    ${formatAnalysisResults(data.analysis)}
+                </div>
+            </div>
+            
+            ${data.auto_imported ? `
+                <div class="flex space-x-4 mt-6">
+                    <button onclick="generateRiskAssessment('${data.cve_id}')" 
+                            class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Risk Assessment
+                    </button>
+                    <button onclick="generateMitigations('${data.cve_id}')" 
+                            class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                        <i class="fas fa-shield-alt mr-2"></i>Generate Mitigations
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    resultsDiv.classList.remove('hidden');
+}
+
+function formatAnalysisResults(analysis) {
+    if (typeof analysis === 'string') {
+        return `<pre class="whitespace-pre-wrap text-sm">${analysis}</pre>`;
+    }
+    
+    if (typeof analysis === 'object') {
+        let html = '';
+        
+        // Format specific fields nicely
+        if (analysis.vulnerability_type) {
+            html += `
+                <div class="mb-4">
+                    <h5 class="font-medium text-gray-900">Vulnerability Type</h5>
+                    <p class="text-gray-700">${analysis.vulnerability_type}</p>
+                </div>`;
+        }
+        
+        if (analysis.attack_complexity) {
+            html += `
+                <div class="mb-4">
+                    <h5 class="font-medium text-gray-900">Attack Complexity</h5>
+                    <span class="px-2 py-1 rounded text-xs font-medium ${getComplexityColor(analysis.attack_complexity)}">
+                        ${analysis.attack_complexity}
+                    </span>
+                </div>`;
+        }
+        
+        if (analysis.attack_vectors && Array.isArray(analysis.attack_vectors)) {
+            html += `
+                <div class="mb-4">
+                    <h5 class="font-medium text-gray-900">Attack Vectors</h5>
+                    <div class="space-y-2 mt-2">
+                        ${analysis.attack_vectors.map(vector => `
+                            <div class="p-3 bg-blue-50 rounded">
+                                <h6 class="font-medium text-blue-900">${vector.vector || 'Unknown Vector'}</h6>
+                                <p class="text-sm text-blue-700 mt-1">${vector.description || 'No description'}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+        }
+        
+        if (analysis.impact_assessment) {
+            html += `
+                <div class="mb-4">
+                    <h5 class="font-medium text-gray-900">Impact Assessment</h5>
+                    <div class="grid grid-cols-3 gap-4 mt-2">
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500">Confidentiality</p>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${getImpactColor(analysis.impact_assessment.confidentiality)}">
+                                ${analysis.impact_assessment.confidentiality || 'Unknown'}
+                            </span>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500">Integrity</p>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${getImpactColor(analysis.impact_assessment.integrity)}">
+                                ${analysis.impact_assessment.integrity || 'Unknown'}
+                            </span>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500">Availability</p>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${getImpactColor(analysis.impact_assessment.availability)}">
+                                ${analysis.impact_assessment.availability || 'Unknown'}
+                            </span>
+                        </div>
+                    </div>
+                </div>`;
+        }
+        
+        if (analysis.confidence_score) {
+            html += `
+                <div class="mb-4">
+                    <h5 class="font-medium text-gray-900">Confidence Score</h5>
+                    <div class="flex items-center mt-2">
+                        <div class="w-full bg-gray-200 rounded-full h-2 mr-3">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: ${analysis.confidence_score}%"></div>
+                        </div>
+                        <span class="text-sm text-gray-600">${analysis.confidence_score}%</span>
+                    </div>
+                </div>`;
+        }
+        
+        // If we have formatted content, return it, otherwise show raw JSON
+        if (html) {
+            return html;
+        }
+    }
+    
+    // Fallback to formatted JSON
+    return `<pre class="text-sm overflow-auto">${JSON.stringify(analysis, null, 2)}</pre>`;
+}
+
+async function generateRiskAssessment(cveId) {
+    if (!cveId) {
+        cveId = document.getElementById('analysis-cve-input').value.trim();
+    }
+    
+    if (!cveId) {
+        showError('Please enter a CVE ID');
+        return;
+    }
+    
+    try {
+        showLoading();
+        updateLoadingMessage('Generating risk assessment...');
+        
+        const response = await fetch(`${API_BASE}/analysis/risk-assessment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                cve_id: cveId,
+                asset_criticality: 'high',
+                auto_import: true
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            displayRiskAssessment(data.risk_assessment);
+            showSuccess('Risk assessment completed successfully!');
+        } else {
+            const error = await response.json();
+            throw new Error(error.detail || 'Risk assessment failed');
+        }
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error generating risk assessment:', error);
+        hideLoading();
+        showError(`Failed to generate risk assessment: ${error.message}`);
+    }
+}
+
+async function generateMitigations(cveId) {
+    if (!cveId) {
+        cveId = document.getElementById('analysis-cve-input').value.trim();
+    }
+    
+    if (!cveId) {
+        showError('Please enter a CVE ID');
+        return;
+    }
+    
+    try {
+        showLoading();
+        updateLoadingMessage('Generating mitigation strategies...');
+        
+        const response = await fetch(`${API_BASE}/analysis/${cveId}/mitigations?auto_import=true`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            displayMitigations(data.mitigations);
+            showSuccess('Mitigation strategies generated successfully!');
+        } else {
+            const error = await response.json();
+            throw new Error(error.detail || 'Mitigation generation failed');
+        }
+        
+        hideLoading();
+    } catch (error) {
+        console.error('Error generating mitigations:', error);
+        hideLoading();
+        showError(`Failed to generate mitigations: ${error.message}`);
+    }
+}
+
+// Helper functions for styling
+function getComplexityColor(complexity) {
+    switch (complexity?.toUpperCase()) {
+        case 'LOW':
+            return 'bg-red-100 text-red-800';
+        case 'MEDIUM':
+            return 'bg-yellow-100 text-yellow-800';
+        case 'HIGH':
+            return 'bg-green-100 text-green-800';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
+}
+
+function getImpactColor(impact) {
+    switch (impact?.toUpperCase()) {
+        case 'HIGH':
+            return 'bg-red-100 text-red-800';
+        case 'LOW':
+            return 'bg-yellow-100 text-yellow-800';
+        case 'NONE':
+            return 'bg-green-100 text-green-800';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
+}
+
+function updateLoadingMessage(message) {
+    const loadingSpinner = document.getElementById('loading-spinner');
+    if (loadingSpinner) {
+        const messageElement = loadingSpinner.querySelector('span');
+        if (messageElement) {
+            messageElement.textContent = message;
+        }
+    }
+}
+
+// Enhanced analyzeCVE function that works with both local and NVD CVEs
+function analyzeCVE(cveId) {
+    showAnalysis();
+    document.getElementById('analysis-cve-input').value = cveId;
+    
+    // Show a message that analysis will auto-import if needed
+    const analysisSection = document.getElementById('analysis-results');
+    if (analysisSection) {
+        analysisSection.innerHTML = `
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-center py-4">
+                    <i class="fas fa-info-circle text-blue-500 text-2xl mb-2"></i>
+                    <p class="text-gray-600">
+                        Preparing to analyze <strong>${cveId}</strong>
+                        <br><small class="text-gray-500">If this CVE is not in our local database, it will be automatically imported from NVD.</small>
+                    </p>
+                </div>
+            </div>
+        `;
+        analysisSection.classList.remove('hidden');
+    }
+    
+    // Start analysis after a short delay to show the message
+    setTimeout(() => startAnalysis(), 1000);
+}
