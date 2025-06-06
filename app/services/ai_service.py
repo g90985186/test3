@@ -166,7 +166,30 @@ Be specific and provide remediation examples."""
                     timeout=aiohttp.ClientTimeout(total=60)
                 ) as response:
                     if response.status == 200:
-                        result = await response.json()
+                        # FIX: Handle potential JSON parsing errors from Ollama streaming responses
+                        try:
+                            result = await response.json()
+                        except json.JSONDecodeError as json_error:
+                            logger.error(f"JSON decode error in AI service: {json_error}")
+                            # Try to parse as text and extract JSON
+                            response_text = await response.text()
+                            logger.debug(f"Raw AI service response: {response_text}")
+                            
+                            # If response contains multiple JSON objects, take the last complete one
+                            lines = response_text.strip().split('\n')
+                            for line in reversed(lines):
+                                if line.strip():
+                                    try:
+                                        result = json.loads(line.strip())
+                                        break
+                                    except json.JSONDecodeError:
+                                        continue
+                            else:
+                                # If no valid JSON found, create a fallback response
+                                result = {
+                                    "response": "Error: Could not parse AI service response",
+                                    "done": True
+                                }
                         
                         ai_response = {
                             "success": True,

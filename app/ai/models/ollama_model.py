@@ -67,23 +67,52 @@ class OllamaModel(BaseAIModel):
                 json={
                     "model": f"{self.model_name}:{self.model_version}",
                     "prompt": prompt,
+                    "stream": False,  # Explicitly disable streaming
                     "temperature": temperature,
-                    "max_tokens": max_tokens,
+                    "options": {
+                        "num_predict": max_tokens,
+                        "temperature": temperature
+                    },
                     **kwargs
                 }
             )
             response.raise_for_status()
-            result = response.json()
+            
+            # FIX: Handle potential streaming or malformed JSON response
+            try:
+                result = response.json()
+            except json.JSONDecodeError as json_error:
+                logger.error(f"JSON decode error: {json_error}")
+                # Try to parse as text and extract JSON
+                response_text = response.text
+                logger.debug(f"Raw response text: {response_text}")
+                
+                # If response contains multiple JSON objects, take the last complete one
+                lines = response_text.strip().split('\n')
+                for line in reversed(lines):
+                    if line.strip():
+                        try:
+                            result = json.loads(line.strip())
+                            break
+                        except json.JSONDecodeError:
+                            continue
+                else:
+                    # If no valid JSON found, create a fallback response
+                    result = {
+                        "response": "Error: Could not parse AI response",
+                        "done": True
+                    }
             
             return ModelResponse(
-                content=result["response"],
+                content=result.get("response", "No response generated"),
                 confidence=result.get("confidence", 1.0),
                 processing_time=(datetime.now() - start_time).total_seconds(),
                 model_name=self.model_name,
                 metadata={
-                    "total_tokens": result.get("total_tokens", 0),
-                    "prompt_tokens": result.get("prompt_tokens", 0),
-                    "completion_tokens": result.get("completion_tokens", 0)
+                    "total_tokens": result.get("eval_count", 0),
+                    "prompt_tokens": result.get("prompt_eval_count", 0),
+                    "completion_tokens": result.get("eval_count", 0),
+                    "done": result.get("done", False)
                 }
             )
             

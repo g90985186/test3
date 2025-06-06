@@ -3823,7 +3823,118 @@ function formatAnalysisResults(analysis) {
     if (typeof analysis === 'object') {
         let html = '';
         
-        // Format specific fields nicely
+        // Handle new API response structure (data.results)
+        if (analysis.vulnerability_summary) {
+            html += `
+                <div class="mb-4">
+                    <h6 class="font-medium text-gray-900 mb-2">Vulnerability Summary</h6>
+                    <p class="text-gray-700">${analysis.vulnerability_summary}</p>
+                </div>`;
+        }
+        
+        // Handle severity assessment
+        if (analysis.severity_assessment) {
+            const severity = analysis.severity_assessment;
+            html += `
+                <div class="mb-4">
+                    <h6 class="font-medium text-gray-900 mb-2">Severity Assessment</h6>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="p-3 bg-red-50 rounded-lg">
+                            <span class="text-sm font-medium text-red-800">CVSS Score</span>
+                            <p class="text-lg font-bold text-red-900">${severity.cvss_score || 'Unknown'}</p>
+                        </div>
+                        <div class="p-3 bg-orange-50 rounded-lg">
+                            <span class="text-sm font-medium text-orange-800">AI Risk Score</span>
+                            <p class="text-lg font-bold text-orange-900">${severity.ai_risk_score || 'N/A'}/10</p>
+                        </div>
+                    </div>
+                    ${severity.severity_justification ? `<p class="text-sm text-gray-600 mt-2">${severity.severity_justification}</p>` : ''}
+                </div>`;
+        }
+        
+        // Handle attack vectors
+        if (analysis.attack_vectors && Array.isArray(analysis.attack_vectors)) {
+            html += `
+                <div class="mb-4">
+                    <h6 class="font-medium text-gray-900 mb-2">Attack Vectors</h6>
+                    <div class="space-y-2">
+                        ${analysis.attack_vectors.map(vector => `
+                            <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                                <span class="font-medium text-blue-900">${vector}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+        }
+        
+        // Handle exploitation analysis
+        if (analysis.exploitation_analysis) {
+            const exploit = analysis.exploitation_analysis;
+            html += `
+                <div class="mb-4">
+                    <h6 class="font-medium text-gray-900 mb-2">Exploitation Analysis</h6>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="p-3 bg-yellow-50 rounded-lg">
+                            <span class="text-sm font-medium text-yellow-800">Likelihood</span>
+                            <p class="font-bold text-yellow-900">${exploit.likelihood || 'Unknown'}</p>
+                        </div>
+                        <div class="p-3 bg-purple-50 rounded-lg">
+                            <span class="text-sm font-medium text-purple-800">Complexity</span>
+                            <p class="font-bold text-purple-900">${exploit.complexity || 'Unknown'}</p>
+                        </div>
+                        <div class="p-3 bg-indigo-50 rounded-lg">
+                            <span class="text-sm font-medium text-indigo-800">Prerequisites</span>
+                            <p class="text-sm text-indigo-900">${exploit.prerequisites || 'Unknown'}</p>
+                        </div>
+                    </div>
+                </div>`;
+        }
+        
+        // Handle remediation recommendations
+        if (analysis.remediation) {
+            const remediation = analysis.remediation;
+            html += `
+                <div class="mb-4">
+                    <h6 class="font-medium text-gray-900 mb-2">Remediation Recommendations</h6>
+                    <div class="p-3 bg-green-50 rounded-lg">
+                        <div class="mb-3">
+                            <span class="text-sm font-medium text-green-800">Priority: </span>
+                            <span class="px-2 py-1 bg-green-200 text-green-800 rounded text-sm">${remediation.priority || 'Medium'}</span>
+                        </div>
+                        ${remediation.immediate_actions && remediation.immediate_actions.length > 0 ? `
+                        <div class="mb-3">
+                            <h7 class="text-sm font-medium text-green-800">Immediate Actions:</h7>
+                            <ul class="list-disc list-inside text-sm text-green-700 mt-1">
+                                ${remediation.immediate_actions.map(action => `<li>${action}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                        ${remediation.long_term_strategies && remediation.long_term_strategies.length > 0 ? `
+                        <div>
+                            <h7 class="text-sm font-medium text-green-800">Long-term Strategies:</h7>
+                            <ul class="list-disc list-inside text-sm text-green-700 mt-1">
+                                ${remediation.long_term_strategies.map(strategy => `<li>${strategy}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>`;
+        }
+        
+        // Handle affected systems
+        if (analysis.affected_systems && Array.isArray(analysis.affected_systems) && analysis.affected_systems.length > 0) {
+            html += `
+                <div class="mb-4">
+                    <h6 class="font-medium text-gray-900 mb-2">Affected Systems</h6>
+                    <div class="space-y-1">
+                        ${analysis.affected_systems.map(system => `
+                            <span class="inline-block px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm mr-2 mb-1">${system}</span>
+                        `).join('')}
+                    </div>
+                </div>`;
+        }
+        
+        // Legacy format support - Format specific fields nicely
         if (analysis.vulnerability_type) {
             html += `
                 <div class="mb-4">
@@ -4007,8 +4118,20 @@ async function startAnalysis() {
                             </div>
                             <div class="p-4 bg-orange-50 rounded-lg">
                                 <h5 class="font-medium text-orange-800">Timestamp</h5>
-                                <p class="text-sm text-orange-600 mt-1">${data.timestamp ? new Date(data.timestamp).toLocaleString() : 'Just now'}</p>
+                                <p class="text-sm text-orange-600 mt-1">${data.created_at ? new Date(data.created_at).toLocaleString() : (data.timestamp ? new Date(data.timestamp).toLocaleString() : 'Just now')}</p>
                             </div>
+                            ${data.analysis_id ? `
+                            <div class="p-4 bg-gray-50 rounded-lg">
+                                <h5 class="font-medium text-gray-800">Analysis ID</h5>
+                                <p class="text-sm text-gray-600 mt-1 font-mono">${data.analysis_id}</p>
+                            </div>
+                            ` : ''}
+                            ${data.status ? `
+                            <div class="p-4 bg-green-50 rounded-lg">
+                                <h5 class="font-medium text-green-800">Status</h5>
+                                <p class="text-sm text-green-600 mt-1 capitalize">${data.status}</p>
+                            </div>
+                            ` : ''}
                         </div>
                         
                         ${data.note ? `
@@ -4019,13 +4142,37 @@ async function startAnalysis() {
                         
                         <div class="mt-6 p-4 bg-gray-50 rounded-lg">
                             <h5 class="font-medium text-gray-800 mb-3">AI Analysis Results</h5>
-                            ${formatAnalysisResults(data.analysis)}
+                            ${formatAnalysisResults(data.results || data.analysis)}
                         </div>
                         
                         ${data.context_used && data.context_used.length > 0 ? `
                         <div class="mt-4 p-3 bg-blue-50 rounded-lg">
                             <h5 class="font-medium text-blue-800">Context Used</h5>
                             <p class="text-sm text-blue-600 mt-1">${data.context_used.join(', ')}</p>
+                        </div>
+                        ` : ''}
+                        
+                        ${data.ai_insights ? `
+                        <div class="mt-4 p-3 bg-purple-50 rounded-lg">
+                            <h5 class="font-medium text-purple-800 mb-2">AI Insights</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <span class="font-medium text-purple-700">Analysis Method:</span>
+                                    <p class="text-purple-600">${data.ai_insights.analysis_method || 'AI Analysis'}</p>
+                                </div>
+                                <div>
+                                    <span class="font-medium text-purple-700">Model Confidence:</span>
+                                    <p class="text-purple-600">${Math.round((data.ai_insights.model_confidence || 0) * 100)}%</p>
+                                </div>
+                                ${data.ai_insights.key_findings && data.ai_insights.key_findings.length > 0 ? `
+                                <div class="md:col-span-2">
+                                    <span class="font-medium text-purple-700">Key Findings:</span>
+                                    <ul class="text-purple-600 mt-1 list-disc list-inside">
+                                        ${data.ai_insights.key_findings.map(finding => `<li>${finding}</li>`).join('')}
+                                    </ul>
+                                </div>
+                                ` : ''}
+                            </div>
                         </div>
                         ` : ''}
                         
