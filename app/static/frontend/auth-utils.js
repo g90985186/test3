@@ -14,8 +14,10 @@ function handleAuthError(error) {
     const message = error.message || 'Authentication required';
     showToast(message, 'error');
     
-    // Redirect to login page
-    window.location.href = '/login';
+    // Show login modal instead of redirecting
+    if (typeof showLoginModal === 'function') {
+        showLoginModal();
+    }
 }
 
 // Check if user is authenticated

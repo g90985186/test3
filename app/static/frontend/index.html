@@ -286,10 +286,10 @@
                                 <input type="text" id="cve-search-input" 
                                        placeholder="Search by CVE ID, keywords, or description..." 
                                        class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                       onkeypress="if(event.key === 'Enter') searchCVEs()">
+                                       onkeypress="if(event.key === 'Enter') performCVESearch()">
                                 <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                             </div>
-                            <button onclick="searchCVEs()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                            <button onclick="performCVESearch()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
                                 <i class="fas fa-search mr-2"></i>Search
                             </button>
                             <button onclick="toggleAdvancedFilters()" class="bg-white text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300">
@@ -1391,8 +1391,6 @@
 
     <script src="app.js"></script>
     <script src="auth.js"></script>
-    <script src="ui-driven-api.js"></script>
-    <script src="debug-search.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

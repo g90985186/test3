@@ -804,6 +804,47 @@ async def get_cve(
     
     return result
 
+@router.get("/{cve_id}/details")
+async def get_cve_details_hybrid(
+    cve_id: str, 
+    db: Session = Depends(get_db),
+    auth: str = Depends(get_auth_dependency())
+):
+    """Get CVE details from local database or NVD (hybrid approach)"""
+    try:
+        # Try local database first
+        cve = db.query(CVE).filter(CVE.cve_id == cve_id).first()
+        if cve:
+            result = cve.to_dict()
+            result.update({
+                "source": "Local Database",
+                "can_import": False,
+                "nvd_link": f"https://nvd.nist.gov/vuln/detail/{cve_id}"
+            })
+            return result
+        
+        # If not found locally, try NVD
+        logger.info(f"CVE {cve_id} not found locally, searching NVD...")
+        nvd_service = NVDSearchService()
+        nvd_result = await nvd_service.get_cve_details(cve_id)
+        
+        if nvd_result.get("success") and nvd_result.get("cve"):
+            cve_data = nvd_result["cve"]
+            cve_data.update({
+                "can_import": True,
+                "import_status": "Available to import"
+            })
+            return cve_data
+        
+        # If not found anywhere, raise 404
+        raise HTTPException(status_code=404, detail=f"CVE {cve_id} not found in local database or NVD")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching CVE details for {cve_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching CVE details: {str(e)}")
+
 @router.get("/stats/summary")
 async def get_cve_stats(
     db: Session = Depends(get_db),
