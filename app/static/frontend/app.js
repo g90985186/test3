@@ -983,7 +983,7 @@ const utils = {
         if (timeUntilExpiry < 300000) {
             try {
                 return await refreshToken();
-            } catch (error) {
+    } catch (error) {
                 console.error('Token refresh failed:', error);
                 return null;
             }
@@ -999,24 +999,24 @@ const utils = {
 
         try {
             const response = await fetch(`${API_BASE}/auth/refresh`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
                 body: JSON.stringify({ refresh_token: refreshToken })
-            });
-
-            if (!response.ok) {
+        });
+        
+        if (!response.ok) {
                 throw new Error('Failed to refresh token');
-            }
-
-            const data = await response.json();
+        }
+        
+        const data = await response.json();
             localStorage.setItem('auth_token', data.access_token);
             localStorage.setItem('refresh_token', data.refresh_token);
             localStorage.setItem('token_expires_at', (Date.now() + data.expires_in * 1000).toString());
             
             return data.access_token;
-        } catch (error) {
+    } catch (error) {
             console.error('Token refresh failed:', error);
             // Clear auth data on refresh failure
             localStorage.removeItem('auth_token');

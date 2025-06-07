@@ -80,7 +80,7 @@ class OllamaModel(BaseAIModel):
             
             # FIX: Handle potential streaming or malformed JSON response
             try:
-            result = response.json()
+                result = response.json()
             except json.JSONDecodeError as json_error:
                 logger.error(f"JSON decode error: {json_error}")
                 # Try to parse as text and extract JSON
