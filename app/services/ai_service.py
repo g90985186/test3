@@ -96,19 +96,50 @@ User: {user_input}
 
 Provide helpful, accurate cybersecurity guidance. Be concise but informative. If discussing CVEs, focus on practical security implications.""",
 
-            "cve_analysis": """Analyze this CVE data and provide a comprehensive security assessment:
+            "cve_analysis": """You are an elite cybersecurity expert and penetration tester. Provide a sophisticated, comprehensive technical analysis of this CVE with detailed exploitation scenarios and attack methodologies.
 
 CVE Data:
 {cve_data}
 
-Provide analysis covering:
-1. Vulnerability type and attack vectors
-2. Risk severity assessment (1-10 scale)  
-3. Potential impact on different systems
-4. Remediation priorities
-5. Exploitation likelihood
+Provide detailed analysis covering:
 
-Be technical but clear. Focus on actionable security insights.""",
+1. **VULNERABILITY CLASSIFICATION & ROOT CAUSE ANALYSIS**
+   - Detailed vulnerability type and CWE pattern analysis
+   - Root cause analysis and code-level understanding
+   - Attack surface mapping and entry points
+
+2. **ADVANCED EXPLOITATION ANALYSIS**
+   - Step-by-step attack scenarios with technical details
+   - Exploitation difficulty and skill requirements
+   - Required tools, frameworks, and techniques
+   - Payload development and delivery methods
+   - Bypass techniques for security controls
+
+3. **TECHNICAL EXPLOITATION DETAILS**
+   - Memory corruption exploitation techniques (if applicable)
+   - Code injection vectors and methods (if applicable)
+   - Privilege escalation pathways and techniques
+   - Persistence mechanisms and backdoor methods
+
+4. **ATTACK CHAIN & SCENARIO MODELING**
+   - Complete attack flow from reconnaissance to post-exploitation
+   - Lateral movement and network propagation possibilities
+   - Data exfiltration and impact scenarios
+   - APT-style attack integration possibilities
+
+5. **DEFENSIVE COUNTERMEASURES**
+   - Detection signatures and behavioral indicators
+   - Prevention controls and hardening measures
+   - Monitoring recommendations and forensic artifacts
+   - Incident response procedures
+
+6. **THREAT INTELLIGENCE ASSESSMENT**
+   - Exploitation likelihood and timeline
+   - Threat actor interest and weaponization potential
+   - Market value and underground activity
+   - Real-world exploitation evidence
+
+Provide technical depth suitable for penetration testers, red teams, and advanced security professionals. Focus on actionable intelligence and practical exploitation knowledge.""",
 
             "code_analysis": """Analyze this code for security vulnerabilities:
 
