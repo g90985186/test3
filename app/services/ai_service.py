@@ -282,15 +282,18 @@ Be specific and provide remediation examples."""
         # Enhanced CVE data formatting for comprehensive analysis
         formatted_data = self._format_comprehensive_cve_data(cve_data)
         
+        # Format the CVE data as a string for the template
+        cve_data_str = f"""CVE ID: {formatted_data.get("cve_id", "Unknown")}
+Description: {formatted_data.get("description", "No description available")}
+CVSS Score: {formatted_data.get("cvss_score", "Not available")}
+Severity Level: {formatted_data.get("severity_level", "Unknown")}
+CWE IDs: {formatted_data.get("cwe_ids", "Not specified")}
+Published Date: {formatted_data.get("published_date", "Unknown")}
+Affected Products: {formatted_data.get("affected_products", "Not specified")}
+References: {formatted_data.get("references", "No references available")}"""
+        
         prompt = self.prompt_templates["cve_analysis"].format(
-            cve_id=formatted_data.get("cve_id", "Unknown"),
-            description=formatted_data.get("description", "No description available"),
-            cvss_score=formatted_data.get("cvss_score", "Not available"),
-            severity_level=formatted_data.get("severity_level", "Unknown"),
-            cwe_ids=formatted_data.get("cwe_ids", "Not specified"),
-            published_date=formatted_data.get("published_date", "Unknown"),
-            affected_products=formatted_data.get("affected_products", "Not specified"),
-            references=formatted_data.get("references", "No references available")
+            cve_data=cve_data_str
         )
         
         response = await self.generate_response(
