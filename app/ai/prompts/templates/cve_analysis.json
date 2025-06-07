@@ -1,12 +1,12 @@
 {
     "name": "cve_analysis",
-    "description": "Analyze a CVE and provide detailed information about its impact and mitigation",
-    "template": "Please analyze the following CVE and provide a detailed assessment:\n\nCVE ID: {cve_id}\nDescription: {description}\n\nPlease provide:\n1. Severity assessment\n2. Potential impact\n3. Affected systems\n4. Recommended mitigation steps\n5. Additional security considerations\n\nFormat the response in a clear, structured manner.",
-    "variables": ["cve_id", "description"],
+    "description": "Comprehensive CVE analysis with detailed security assessment and actionable insights",
+    "template": "You are a cybersecurity expert analyzing CVE vulnerabilities. Provide a comprehensive, detailed analysis of the following CVE:\n\n=== CVE INFORMATION ===\nCVE ID: {cve_id}\nDescription: {description}\nCVSS Score: {cvss_score}\nSeverity Level: {severity_level}\nCWE IDs: {cwe_ids}\nPublished Date: {published_date}\nAffected Products: {affected_products}\nReferences: {references}\n\n=== ANALYSIS REQUIREMENTS ===\nProvide a detailed analysis covering:\n\n1. **VULNERABILITY SUMMARY**\n   - Technical nature of the vulnerability\n   - Root cause analysis\n   - Vulnerability classification\n\n2. **SEVERITY ASSESSMENT**\n   - CVSS score interpretation\n   - Real-world risk evaluation\n   - Business impact assessment\n   - Exploitability analysis\n\n3. **TECHNICAL DETAILS**\n   - Attack vectors and methods\n   - Prerequisites for exploitation\n   - Affected components and systems\n   - Technical complexity assessment\n\n4. **IMPACT ANALYSIS**\n   - Confidentiality impact\n   - Integrity impact\n   - Availability impact\n   - Potential business consequences\n   - Data exposure risks\n\n5. **EXPLOITATION ANALYSIS**\n   - Likelihood of exploitation\n   - Known exploits or PoCs\n   - Attack complexity\n   - Required privileges\n   - User interaction requirements\n\n6. **AFFECTED SYSTEMS & ENVIRONMENTS**\n   - Specific products and versions\n   - Operating systems\n   - Network configurations\n   - Cloud environments\n\n7. **MITIGATION & REMEDIATION**\n   - Immediate actions required\n   - Patch availability and timeline\n   - Workarounds and temporary fixes\n   - Long-term security improvements\n   - Monitoring and detection strategies\n\n8. **RECOMMENDATIONS**\n   - Priority level (Critical/High/Medium/Low)\n   - Implementation timeline\n   - Resource requirements\n   - Risk acceptance considerations\n\nFormat your response with clear headings and bullet points. Be specific, actionable, and focus on practical security implications.",
+    "variables": ["cve_id", "description", "cvss_score", "severity_level", "cwe_ids", "published_date", "affected_products", "references"],
     "metadata": {
         "category": "security",
-        "model": "llama3.1",
-        "max_tokens": "2048",
-        "temperature": "0.7"
+        "model": "gemma2:9b",
+        "max_tokens": "4096",
+        "temperature": "0.3"
     }
 } 

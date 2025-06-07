@@ -273,31 +273,40 @@ Be specific and provide remediation examples."""
         cve_data: Dict[str, Any], 
         **kwargs
     ) -> Dict[str, Any]:
-        """Analyze CVE using local AI"""
+        """Comprehensive CVE analysis using local AI with detailed insights"""
         if not self.is_initialized:
             await self.initialize()
             
         model = self.model_assignments["cve_analysis"]
         
-        # Format CVE data for analysis
-        formatted_cve = self._format_cve_data(cve_data)
+        # Enhanced CVE data formatting for comprehensive analysis
+        formatted_data = self._format_comprehensive_cve_data(cve_data)
         
         prompt = self.prompt_templates["cve_analysis"].format(
-            cve_data=formatted_cve
+            cve_id=formatted_data.get("cve_id", "Unknown"),
+            description=formatted_data.get("description", "No description available"),
+            cvss_score=formatted_data.get("cvss_score", "Not available"),
+            severity_level=formatted_data.get("severity_level", "Unknown"),
+            cwe_ids=formatted_data.get("cwe_ids", "Not specified"),
+            published_date=formatted_data.get("published_date", "Unknown"),
+            affected_products=formatted_data.get("affected_products", "Not specified"),
+            references=formatted_data.get("references", "No references available")
         )
         
         response = await self.generate_response(
             prompt, 
             model, 
-            temperature=0.1,  # Lower temperature for technical analysis
+            temperature=0.2,  # Low temperature for consistent technical analysis
+            num_predict=4096,  # More tokens for comprehensive analysis
             **kwargs
         )
         
         if response["success"]:
             logger.info(f"CVE analysis completed using {model}")
-            # Parse and structure the analysis response
-            analysis = self._parse_cve_analysis(response["response"])
-            response["structured_analysis"] = analysis
+            # Parse and structure the comprehensive analysis response
+            structured_analysis = self._parse_comprehensive_cve_analysis(response["response"], cve_data)
+            response["structured_analysis"] = structured_analysis
+            response["detailed_insights"] = self._extract_detailed_insights(response["response"])
         
         return response
     
@@ -330,33 +339,126 @@ Be specific and provide remediation examples."""
         
         return response
     
-    def _format_cve_data(self, cve_data: Dict[str, Any]) -> str:
-        """Format CVE data for AI analysis"""
-        formatted = []
+    def _format_comprehensive_cve_data(self, cve_data: Dict[str, Any]) -> Dict[str, str]:
+        """Format CVE data comprehensively for detailed AI analysis"""
         
-        if "id" in cve_data:
-            formatted.append(f"CVE ID: {cve_data['id']}")
-        if "description" in cve_data:
-            formatted.append(f"Description: {cve_data['description']}")
-        if "severity" in cve_data:
-            formatted.append(f"CVSS Score: {cve_data['severity']}")
-        if "published_date" in cve_data:
-            formatted.append(f"Published: {cve_data['published_date']}")
-        if "cwe" in cve_data:
-            formatted.append(f"CWE: {cve_data['cwe']}")
+        # Handle different possible field names and formats
+        cve_id = (cve_data.get("cve_id") or 
+                 cve_data.get("id") or 
+                 cve_data.get("CVE_ID") or 
+                 "Unknown CVE")
         
-        return "\n".join(formatted) if formatted else "No CVE data available"
-    
-    def _parse_cve_analysis(self, analysis_text: str) -> Dict[str, Any]:
-        """Parse structured analysis from AI response"""
-        analysis = {
-            "risk_score": self._extract_risk_score(analysis_text),
-            "vulnerability_type": "Unknown",
-            "impact_assessment": "Analysis pending",
-            "remediation_priority": self._extract_priority(analysis_text),
-            "exploitation_likelihood": "Medium"
+        description = (cve_data.get("description") or 
+                      cve_data.get("summary") or 
+                      "No description available")
+        
+        cvss_score = (cve_data.get("cvss_v3_score") or 
+                     cve_data.get("cvss_score") or 
+                     cve_data.get("severity") or 
+                     "Not available")
+        
+        severity_level = (cve_data.get("severity_level") or 
+                         cve_data.get("severity") or 
+                         self._determine_severity_from_score(cvss_score))
+        
+        # Format CWE IDs
+        cwe_ids = cve_data.get("cwe_ids", [])
+        if isinstance(cwe_ids, list):
+            cwe_formatted = ", ".join(cwe_ids) if cwe_ids else "Not specified"
+        else:
+            cwe_formatted = str(cwe_ids) if cwe_ids else "Not specified"
+        
+        # Format published date
+        published_date = (cve_data.get("published_date") or 
+                         cve_data.get("published") or 
+                         "Unknown")
+        
+        # Format affected products
+        affected_products = cve_data.get("affected_products", [])
+        if isinstance(affected_products, list):
+            products_formatted = ", ".join(affected_products) if affected_products else "Not specified"
+        else:
+            products_formatted = str(affected_products) if affected_products else "Not specified"
+        
+        # Format references
+        references = cve_data.get("references", [])
+        if isinstance(references, list):
+            refs_formatted = "\n".join([f"- {ref}" for ref in references[:5]]) if references else "No references available"
+        else:
+            refs_formatted = str(references) if references else "No references available"
+        
+        return {
+            "cve_id": cve_id,
+            "description": description,
+            "cvss_score": str(cvss_score),
+            "severity_level": severity_level,
+            "cwe_ids": cwe_formatted,
+            "published_date": str(published_date),
+            "affected_products": products_formatted,
+            "references": refs_formatted
         }
+    
+    def _determine_severity_from_score(self, score) -> str:
+        """Determine severity level from CVSS score"""
+        try:
+            score_float = float(score)
+            if score_float >= 9.0:
+                return "CRITICAL"
+            elif score_float >= 7.0:
+                return "HIGH"
+            elif score_float >= 4.0:
+                return "MEDIUM"
+            else:
+                return "LOW"
+        except (ValueError, TypeError):
+            return "Unknown"
+    
+    def _parse_comprehensive_cve_analysis(self, analysis_text: str, cve_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse comprehensive structured analysis from AI response"""
+        
+        analysis = {
+            # Basic assessment
+            "risk_score": self._extract_risk_score(analysis_text),
+            "vulnerability_type": self._extract_vulnerability_type(analysis_text),
+            "remediation_priority": self._extract_priority(analysis_text),
+            "exploitation_likelihood": self._extract_exploitation_likelihood(analysis_text),
+            
+            # Technical details
+            "attack_vectors": self._extract_attack_vectors(analysis_text),
+            "technical_complexity": self._extract_complexity(analysis_text),
+            "prerequisites": self._extract_prerequisites(analysis_text),
+            
+            # Impact analysis
+            "confidentiality_impact": self._extract_impact_type(analysis_text, "confidentiality"),
+            "integrity_impact": self._extract_impact_type(analysis_text, "integrity"),
+            "availability_impact": self._extract_impact_type(analysis_text, "availability"),
+            "business_impact": self._extract_business_impact(analysis_text),
+            
+            # Mitigation and recommendations
+            "immediate_actions": self._extract_immediate_actions(analysis_text),
+            "patch_availability": self._extract_patch_info(analysis_text),
+            "workarounds": self._extract_workarounds(analysis_text),
+            "monitoring_recommendations": self._extract_monitoring_recommendations(analysis_text),
+            
+            # Metadata
+            "analysis_confidence": self._calculate_analysis_confidence(analysis_text, cve_data),
+            "last_updated": datetime.now().isoformat()
+        }
+        
         return analysis
+    
+    def _extract_detailed_insights(self, analysis_text: str) -> Dict[str, Any]:
+        """Extract detailed insights from the AI analysis"""
+        
+        insights = {
+            "key_findings": self._extract_key_findings(analysis_text),
+            "security_implications": self._extract_security_implications(analysis_text),
+            "threat_landscape": self._extract_threat_landscape(analysis_text),
+            "compliance_considerations": self._extract_compliance_considerations(analysis_text),
+            "detection_strategies": self._extract_detection_strategies(analysis_text)
+        }
+        
+        return insights
     
     def _extract_risk_score(self, text: str) -> int:
         """Extract risk score from analysis text"""
@@ -378,6 +480,335 @@ Be specific and provide remediation examples."""
         elif "low" in text_lower:
             return "Low"
         return "Medium"
+    
+    def _extract_vulnerability_type(self, text: str) -> str:
+        """Extract vulnerability type from analysis"""
+        text_lower = text.lower()
+        
+        # Common vulnerability types
+        vuln_types = {
+            "injection": ["sql injection", "code injection", "command injection", "ldap injection"],
+            "xss": ["cross-site scripting", "xss", "reflected xss", "stored xss"],
+            "authentication": ["authentication bypass", "weak authentication", "broken authentication"],
+            "authorization": ["privilege escalation", "access control", "authorization bypass"],
+            "cryptographic": ["weak encryption", "cryptographic", "weak hash", "broken crypto"],
+            "buffer_overflow": ["buffer overflow", "stack overflow", "heap overflow"],
+            "deserialization": ["deserialization", "unsafe deserialization"],
+            "path_traversal": ["path traversal", "directory traversal", "file inclusion"],
+            "ssrf": ["server-side request forgery", "ssrf"],
+            "csrf": ["cross-site request forgery", "csrf"],
+            "dos": ["denial of service", "dos", "ddos"],
+            "information_disclosure": ["information disclosure", "data exposure", "sensitive data"]
+        }
+        
+        for vuln_type, keywords in vuln_types.items():
+            if any(keyword in text_lower for keyword in keywords):
+                return vuln_type.replace("_", " ").title()
+        
+        return "Unknown"
+    
+    def _extract_exploitation_likelihood(self, text: str) -> str:
+        """Extract exploitation likelihood"""
+        text_lower = text.lower()
+        
+        if any(word in text_lower for word in ["very high", "extremely likely", "trivial", "easy"]):
+            return "Very High"
+        elif any(word in text_lower for word in ["high", "likely", "probable"]):
+            return "High"
+        elif any(word in text_lower for word in ["medium", "moderate", "possible"]):
+            return "Medium"
+        elif any(word in text_lower for word in ["low", "unlikely", "difficult"]):
+            return "Low"
+        elif any(word in text_lower for word in ["very low", "extremely unlikely", "nearly impossible"]):
+            return "Very Low"
+        
+        return "Medium"
+    
+    def _extract_attack_vectors(self, text: str) -> List[str]:
+        """Extract attack vectors from analysis"""
+        vectors = []
+        text_lower = text.lower()
+        
+        vector_keywords = {
+            "Network": ["network", "remote", "internet", "web"],
+            "Local": ["local", "physical access", "local access"],
+            "Adjacent Network": ["adjacent", "local network", "lan"],
+            "Physical": ["physical", "physical access", "usb", "hardware"]
+        }
+        
+        for vector, keywords in vector_keywords.items():
+            if any(keyword in text_lower for keyword in keywords):
+                vectors.append(vector)
+        
+        return vectors if vectors else ["Unknown"]
+    
+    def _extract_complexity(self, text: str) -> str:
+        """Extract technical complexity"""
+        text_lower = text.lower()
+        
+        if any(word in text_lower for word in ["very complex", "extremely difficult", "advanced"]):
+            return "Very High"
+        elif any(word in text_lower for word in ["complex", "difficult", "sophisticated"]):
+            return "High"
+        elif any(word in text_lower for word in ["moderate", "medium complexity"]):
+            return "Medium"
+        elif any(word in text_lower for word in ["simple", "easy", "straightforward", "low complexity"]):
+            return "Low"
+        
+        return "Medium"
+    
+    def _extract_prerequisites(self, text: str) -> List[str]:
+        """Extract prerequisites for exploitation"""
+        prerequisites = []
+        text_lower = text.lower()
+        
+        prereq_patterns = [
+            ("Authentication Required", ["authentication", "login", "credentials"]),
+            ("Administrative Access", ["admin", "administrator", "root", "elevated"]),
+            ("User Interaction", ["user interaction", "social engineering", "click"]),
+            ("Network Access", ["network access", "network connectivity"]),
+            ("Local Access", ["local access", "physical access"]),
+            ("Specific Configuration", ["configuration", "misconfiguration", "settings"])
+        ]
+        
+        for prereq, keywords in prereq_patterns:
+            if any(keyword in text_lower for keyword in keywords):
+                prerequisites.append(prereq)
+        
+        return prerequisites if prerequisites else ["Standard system access"]
+    
+    def _extract_impact_type(self, text: str, impact_type: str) -> str:
+        """Extract specific impact type (confidentiality, integrity, availability)"""
+        text_lower = text.lower()
+        impact_section = ""
+        
+        # Try to find the specific impact section
+        if f"{impact_type} impact" in text_lower:
+            start = text_lower.find(f"{impact_type} impact")
+            end = text_lower.find("\n\n", start)
+            if end == -1:
+                end = start + 200
+            impact_section = text_lower[start:end]
+        else:
+            impact_section = text_lower
+        
+        if any(word in impact_section for word in ["complete", "total", "full", "high"]):
+            return "High"
+        elif any(word in impact_section for word in ["partial", "limited", "some"]):
+            return "Partial"
+        elif any(word in impact_section for word in ["none", "no impact", "minimal"]):
+            return "None"
+        
+        return "Unknown"
+    
+    def _extract_business_impact(self, text: str) -> List[str]:
+        """Extract business impact considerations"""
+        impacts = []
+        text_lower = text.lower()
+        
+        business_impacts = [
+            ("Data Breach", ["data breach", "data exposure", "sensitive data"]),
+            ("Service Disruption", ["service disruption", "downtime", "availability"]),
+            ("Financial Loss", ["financial", "revenue", "cost"]),
+            ("Reputation Damage", ["reputation", "brand", "trust"]),
+            ("Compliance Violation", ["compliance", "regulatory", "gdpr", "hipaa"]),
+            ("Intellectual Property Theft", ["intellectual property", "trade secrets", "proprietary"])
+        ]
+        
+        for impact, keywords in business_impacts.items():
+            if any(keyword in text_lower for keyword in keywords):
+                impacts.append(impact)
+        
+        return impacts if impacts else ["Potential security compromise"]
+    
+    def _extract_immediate_actions(self, text: str) -> List[str]:
+        """Extract immediate action items"""
+        actions = []
+        text_lower = text.lower()
+        
+        # Look for action-oriented phrases
+        action_patterns = [
+            "apply patch",
+            "update software",
+            "disable service",
+            "implement workaround",
+            "monitor systems",
+            "review logs",
+            "restrict access",
+            "backup data"
+        ]
+        
+        for pattern in action_patterns:
+            if pattern in text_lower:
+                actions.append(pattern.title())
+        
+        # If no specific actions found, provide generic ones
+        if not actions:
+            actions = ["Review security patches", "Monitor system logs", "Assess exposure"]
+        
+        return actions
+    
+    def _extract_patch_info(self, text: str) -> str:
+        """Extract patch availability information"""
+        text_lower = text.lower()
+        
+        if "patch available" in text_lower or "update available" in text_lower:
+            return "Available"
+        elif "patch pending" in text_lower or "fix in development" in text_lower:
+            return "Pending"
+        elif "no patch" in text_lower or "no fix" in text_lower:
+            return "Not Available"
+        
+        return "Unknown"
+    
+    def _extract_workarounds(self, text: str) -> List[str]:
+        """Extract workaround suggestions"""
+        workarounds = []
+        text_lower = text.lower()
+        
+        workaround_patterns = [
+            "disable feature",
+            "restrict access",
+            "implement firewall rules",
+            "use alternative software",
+            "apply configuration changes",
+            "enable additional logging"
+        ]
+        
+        for pattern in workaround_patterns:
+            if pattern in text_lower:
+                workarounds.append(pattern.title())
+        
+        return workarounds if workarounds else ["Consult vendor documentation"]
+    
+    def _extract_monitoring_recommendations(self, text: str) -> List[str]:
+        """Extract monitoring and detection recommendations"""
+        recommendations = []
+        text_lower = text.lower()
+        
+        monitoring_patterns = [
+            "monitor network traffic",
+            "review access logs",
+            "implement intrusion detection",
+            "enable security logging",
+            "monitor file integrity",
+            "track user activities"
+        ]
+        
+        for pattern in monitoring_patterns:
+            if pattern in text_lower:
+                recommendations.append(pattern.title())
+        
+        return recommendations if recommendations else ["Enable comprehensive logging", "Monitor for suspicious activities"]
+    
+    def _calculate_analysis_confidence(self, analysis_text: str, cve_data: Dict[str, Any]) -> float:
+        """Calculate confidence score for the analysis"""
+        confidence = 0.5  # Base confidence
+        
+        # Increase confidence based on available data
+        if cve_data.get("cvss_v3_score"):
+            confidence += 0.1
+        if cve_data.get("description") and len(cve_data["description"]) > 50:
+            confidence += 0.1
+        if cve_data.get("cwe_ids"):
+            confidence += 0.1
+        if cve_data.get("references"):
+            confidence += 0.1
+        
+        # Increase confidence based on analysis depth
+        if len(analysis_text) > 1000:
+            confidence += 0.1
+        if "technical details" in analysis_text.lower():
+            confidence += 0.05
+        if "mitigation" in analysis_text.lower():
+            confidence += 0.05
+        
+        return min(confidence, 1.0)
+    
+    def _extract_key_findings(self, text: str) -> List[str]:
+        """Extract key findings from analysis"""
+        findings = []
+        
+        # Look for bullet points or numbered items
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('-') or line.startswith('•') or any(line.startswith(f"{i}.") for i in range(1, 10)):
+                finding = line.lstrip('-•0123456789. ').strip()
+                if len(finding) > 10:  # Filter out very short items
+                    findings.append(finding)
+        
+        return findings[:5] if findings else ["Comprehensive security analysis completed"]
+    
+    def _extract_security_implications(self, text: str) -> List[str]:
+        """Extract security implications"""
+        implications = []
+        text_lower = text.lower()
+        
+        implication_keywords = [
+            "security risk",
+            "vulnerability allows",
+            "attacker can",
+            "potential for",
+            "risk of",
+            "could lead to"
+        ]
+        
+        sentences = text.split('.')
+        for sentence in sentences:
+            sentence_lower = sentence.lower().strip()
+            if any(keyword in sentence_lower for keyword in implication_keywords):
+                implications.append(sentence.strip())
+        
+        return implications[:3] if implications else ["Standard security considerations apply"]
+    
+    def _extract_threat_landscape(self, text: str) -> str:
+        """Extract threat landscape assessment"""
+        text_lower = text.lower()
+        
+        if "active exploitation" in text_lower or "in the wild" in text_lower:
+            return "Active threats detected"
+        elif "proof of concept" in text_lower or "poc available" in text_lower:
+            return "PoC exploits available"
+        elif "theoretical" in text_lower:
+            return "Theoretical risk"
+        
+        return "Standard threat landscape"
+    
+    def _extract_compliance_considerations(self, text: str) -> List[str]:
+        """Extract compliance considerations"""
+        considerations = []
+        text_lower = text.lower()
+        
+        compliance_frameworks = [
+            "PCI DSS", "HIPAA", "GDPR", "SOX", "ISO 27001", "NIST", "CIS"
+        ]
+        
+        for framework in compliance_frameworks:
+            if framework.lower() in text_lower:
+                considerations.append(f"{framework} compliance impact")
+        
+        return considerations if considerations else ["Review applicable compliance requirements"]
+    
+    def _extract_detection_strategies(self, text: str) -> List[str]:
+        """Extract detection strategies"""
+        strategies = []
+        text_lower = text.lower()
+        
+        detection_methods = [
+            "signature-based detection",
+            "behavioral analysis",
+            "anomaly detection",
+            "log analysis",
+            "network monitoring",
+            "endpoint detection"
+        ]
+        
+        for method in detection_methods:
+            if method in text_lower:
+                strategies.append(method.title())
+        
+        return strategies if strategies else ["Implement comprehensive monitoring", "Review security logs regularly"]
     
     async def get_service_stats(self) -> Dict[str, Any]:
         """Get AI service statistics"""
