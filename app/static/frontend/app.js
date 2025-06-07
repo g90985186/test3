@@ -1330,7 +1330,7 @@ async function sendMessage() {
         if (response.suggestions && response.suggestions.length > 0) {
             showChatSuggestions(response.suggestions);
         }
-        
+
     } catch (error) {
         console.error('Chat error:', error);
         addMessage('Sorry, I encountered an error. Please try again or check if the AI service is running.', false);
@@ -1434,7 +1434,7 @@ function addMessage(message, isUser = false) {
     
     // Scroll to bottom
     setTimeout(() => {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }, 100);
 }
 
@@ -4115,7 +4115,7 @@ async function startAnalysis() {
                             <div class="p-4 bg-purple-50 rounded-lg">
                                 <h5 class="font-medium text-purple-800">Analysis Type</h5>
                                 <p class="text-sm text-purple-600 mt-1">${data.analysis_type || 'Comprehensive'}</p>
-                            </div>
+                        </div>
                             <div class="p-4 bg-orange-50 rounded-lg">
                                 <h5 class="font-medium text-orange-800">Timestamp</h5>
                                 <p class="text-sm text-orange-600 mt-1">${data.created_at ? new Date(data.created_at).toLocaleString() : (data.timestamp ? new Date(data.timestamp).toLocaleString() : 'Just now')}</p>

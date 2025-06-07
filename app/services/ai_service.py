@@ -168,7 +168,7 @@ Be specific and provide remediation examples."""
                     if response.status == 200:
                         # FIX: Handle potential JSON parsing errors from Ollama streaming responses
                         try:
-                            result = await response.json()
+                        result = await response.json()
                         except json.JSONDecodeError as json_error:
                             logger.error(f"JSON decode error in AI service: {json_error}")
                             # Try to parse as text and extract JSON
@@ -618,7 +618,7 @@ References: {formatted_data.get("references", "No references available")}"""
             ("Intellectual Property Theft", ["intellectual property", "trade secrets", "proprietary"])
         ]
         
-        for impact, keywords in business_impacts.items():
+        for impact, keywords in business_impacts:
             if any(keyword in text_lower for keyword in keywords):
                 impacts.append(impact)
         

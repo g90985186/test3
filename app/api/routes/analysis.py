@@ -599,9 +599,9 @@ async def _fetch_cve_data(cve_id: str) -> Dict[str, Any]:
         
         # Fallback to mock data if nothing found
         logger.warning(f"CVE {cve_id} not found in database or NVD, using fallback data")
-        return {
+    return {
             "cve_id": cve_id,
-            "description": f"Security vulnerability {cve_id} - detailed analysis required",
+        "description": f"Security vulnerability {cve_id} - detailed analysis required",
             "severity": "Unknown",
             "cvss_v3_score": None,
             "published_date": "Unknown",
@@ -620,7 +620,7 @@ async def _fetch_cve_data(cve_id: str) -> Dict[str, Any]:
             "published_date": "Unknown",
             "cwe_ids": [],
             "affected_products": []
-        }
+    }
 
 def _extract_attack_vectors(ai_response: str) -> List[str]:
     """Extract attack vectors from AI response"""
