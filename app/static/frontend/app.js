@@ -220,6 +220,27 @@ function showSettings() {
     updateActiveNavButton('settings');
 }
 
+function showReports() {
+    hideAllSections();
+    document.getElementById('reports-section').classList.remove('hidden');
+    updateActiveNavButton('reports');
+    loadReports();
+}
+
+function showMonitoring() {
+    hideAllSections();
+    document.getElementById('monitoring-section').classList.remove('hidden');
+    updateActiveNavButton('monitoring');
+    loadSystemStatus();
+}
+
+function showUserManagement() {
+    hideAllSections();
+    document.getElementById('user-management-section').classList.remove('hidden');
+    updateActiveNavButton('user-management');
+    loadUsers();
+}
+
 // Utility functions for navigation
 function hideAllSections() {
     const sections = document.querySelectorAll('.section');
@@ -3872,142 +3893,21 @@ function displayAnalysisResults(result, cveId) {
     const resultsDiv = document.getElementById('analysis-results');
     if (!resultsDiv) return;
     
-    // Get or create the content div
-    let contentDiv = document.getElementById('analysis-content');
-    if (!contentDiv) {
-        contentDiv = resultsDiv.querySelector('.bg-white.rounded-lg.shadow.p-6 #analysis-content') || 
-                    resultsDiv.querySelector('#analysis-content');
-    }
+    console.log('Displaying analysis results:', result);
     
-    // Parse structured analysis if available
-    let structuredAnalysis = null;
-    try {
-        if (result.structured_analysis) {
-            structuredAnalysis = typeof result.structured_analysis === 'string' 
-                ? JSON.parse(result.structured_analysis) 
-                : result.structured_analysis;
-        } else if (result.response) {
-            // Try to parse JSON from response
-            const jsonMatch = result.response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                structuredAnalysis = JSON.parse(jsonMatch[0]);
-            }
-        }
-    } catch (e) {
-        console.warn('Could not parse structured analysis:', e);
-    }
+    // Parse and structure the analysis data
+    let analysisData = parseAnalysisData(result);
+    let displayContent = '';
     
-    // If contentDiv exists, update it; otherwise update the entire resultsDiv
-    if (contentDiv) {
-        contentDiv.innerHTML = `
-            <div class="space-y-6">
-                <!-- Analysis Header -->
-                <div class="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-lg border border-red-200">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-900">🔍 Advanced CVE Analysis</h3>
-                            <p class="text-sm text-gray-600 mt-1">Elite-level vulnerability assessment for ${cveId || 'Unknown CVE'}</p>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                                <i class="fas fa-brain mr-1"></i>AI Expert Analysis
-                            </span>
-                            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                                <i class="fas fa-check mr-1"></i>Complete
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Enhanced Quick Summary -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-red-100 rounded-lg">
-                                <i class="fas fa-exclamation-triangle text-red-600"></i>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm font-medium text-gray-500">Risk Level</p>
-                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.confidence_assessment?.overall_confidence || structuredAnalysis?.risk_score || 'N/A'}/100</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-yellow-100 rounded-lg">
-                                <i class="fas fa-crosshairs text-yellow-600"></i>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm font-medium text-gray-500">Exploitation</p>
-                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.exploitation_difficulty || 'Unknown'}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-purple-100 rounded-lg">
-                                <i class="fas fa-clock text-purple-600"></i>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm font-medium text-gray-500">Time to Exploit</p>
-                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.time_to_exploit || 'Unknown'}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-blue-100 rounded-lg">
-                                <i class="fas fa-user-ninja text-blue-600"></i>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm font-medium text-gray-500">Skill Level</p>
-                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.skill_level_required || 'Unknown'}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                ${structuredAnalysis ? generateAdvancedAnalysisDisplay(structuredAnalysis) : generateBasicAnalysisDisplay(result)}
-                
-                <!-- Action Buttons -->
-                <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
-                    <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        <i class="fas fa-download mr-2"></i>Export Report
-                    </button>
-                    <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                        <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
-                    </button>
-                    <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-                        <i class="fas fa-code mr-2"></i>Generate PoC
-                    </button>
-                    <button onclick="shareAnalysis('${cveId || 'unknown'}')" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-                        <i class="fas fa-share mr-2"></i>Share Analysis
-                    </button>
-                </div>
-            </div>
-        `;
+    // Check if we have structured analysis data
+    if (analysisData.isStructured) {
+        displayContent = generateAdvancedAnalysisDisplay(analysisData.data, cveId);
     } else {
-        // Fallback: display basic analysis in the results div
-        resultsDiv.innerHTML = `
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Analysis Results</h3>
-                <div class="prose max-w-none">
-                    ${result.response ? result.response.replace(/\n/g, '<br>') : JSON.stringify(result, null, 2)}
-                </div>
-                <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200 mt-4">
-                    <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        <i class="fas fa-download mr-2"></i>Export Report
-                    </button>
-                    <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                        <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
-                    </button>
-                    <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-                        <i class="fas fa-code mr-2"></i>Generate PoC
-                    </button>
-                </div>
-            </div>
-        `;
+        displayContent = generateBasicAnalysisDisplay(analysisData.data, cveId);
     }
+    
+    // Display the analysis results with modern UI
+    resultsDiv.innerHTML = displayContent;
     resultsDiv.classList.remove('hidden');
 }
 
@@ -4558,6 +4458,618 @@ function loadSearchPreferences() {
     }
 }
 
+// Reports Management Functions
+async function generateReport() {
+    const reportType = document.getElementById('report-type').value;
+    const format = document.getElementById('report-format').value;
+    const template = document.getElementById('report-template').value;
+    const title = document.getElementById('report-title').value;
+    
+    try {
+        const api = new CVEPlatformAPI();
+        const reportData = {
+            report_type: reportType,
+            format: format,
+            template: template,
+            title: title || undefined
+        };
+        
+        showToast('Generating report...', 'info');
+        const result = await api.generateReport(reportData);
+        
+        showToast('Report generated successfully!', 'success');
+        loadReports(); // Refresh the reports list
+        
+    } catch (error) {
+        console.error('Error generating report:', error);
+        showToast('Failed to generate report', 'error');
+    }
+}
+
+async function loadReports() {
+    try {
+        const api = new CVEPlatformAPI();
+        const reports = await api.getReports();
+        displayReports(reports);
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        showToast('Failed to load reports', 'error');
+    }
+}
+
+function displayReports(reports) {
+    const container = document.getElementById('reports-list');
+    if (!reports || reports.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-file-alt text-4xl mb-4"></i>
+                <p>No reports generated yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = reports.map(report => `
+        <div class="border border-gray-200 rounded-lg p-4 mb-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h4 class="font-medium text-gray-900">${report.title}</h4>
+                    <p class="text-sm text-gray-500">Type: ${report.report_type} | Format: ${report.format}</p>
+                    <p class="text-sm text-gray-500">Created: ${new Date(report.created_at).toLocaleString()}</p>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(report.status)}">
+                        ${report.status}
+                    </span>
+                </div>
+                <div class="flex space-x-2">
+                    ${report.status === 'completed' ? `
+                        <button onclick="downloadReport('${report.report_id}')" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    ` : ''}
+                    <button onclick="deleteReport('${report.report_id}')" class="text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function downloadReport(reportId) {
+    try {
+        const api = new CVEPlatformAPI();
+        const response = await api.downloadReport(reportId);
+        // Handle file download
+        showToast('Report downloaded successfully', 'success');
+    } catch (error) {
+        console.error('Error downloading report:', error);
+        showToast('Failed to download report', 'error');
+    }
+}
+
+async function deleteReport(reportId) {
+    if (!confirm('Are you sure you want to delete this report?')) return;
+    
+    try {
+        const api = new CVEPlatformAPI();
+        await api.deleteReport(reportId);
+        showToast('Report deleted successfully', 'success');
+        loadReports();
+    } catch (error) {
+        console.error('Error deleting report:', error);
+        showToast('Failed to delete report', 'error');
+    }
+}
+
+async function showReportMetrics() {
+    try {
+        const api = new CVEPlatformAPI();
+        const metrics = await api.getReportMetrics();
+        
+        const metricsDiv = document.getElementById('report-metrics');
+        const contentDiv = document.getElementById('report-metrics-content');
+        
+        contentDiv.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-blue-900">Total Reports</h4>
+                    <p class="text-2xl font-bold text-blue-600">${metrics.total_reports}</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-green-900">Downloads</h4>
+                    <p class="text-2xl font-bold text-green-600">${metrics.total_downloads}</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-purple-900">Avg Generation Time</h4>
+                    <p class="text-2xl font-bold text-purple-600">${metrics.average_generation_time.toFixed(2)}s</p>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-yellow-900">Most Popular Type</h4>
+                    <p class="text-lg font-bold text-yellow-600">${Object.keys(metrics.reports_by_type)[0] || 'N/A'}</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 mb-3">Reports by Type</h4>
+                    <div class="space-y-2">
+                        ${Object.entries(metrics.reports_by_type).map(([type, count]) => `
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">${type}</span>
+                                <span class="font-medium">${count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 mb-3">Reports by Format</h4>
+                    <div class="space-y-2">
+                        ${Object.entries(metrics.reports_by_format).map(([format, count]) => `
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">${format.toUpperCase()}</span>
+                                <span class="font-medium">${count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        metricsDiv.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading report metrics:', error);
+        showToast('Failed to load report metrics', 'error');
+    }
+}
+
+// System Monitoring Functions
+async function loadSystemStatus() {
+    try {
+        const api = new CVEPlatformAPI();
+        
+        // Load health check
+        const health = await api.getHealthCheck();
+        document.getElementById('system-health-status').textContent = health.status || 'Unknown';
+        
+        // Load system status
+        const status = await api.getSystemStatus();
+        document.getElementById('system-status').textContent = status.status || 'Unknown';
+        
+        // Load performance metrics
+        const performance = await api.getPerformanceMetrics();
+        document.getElementById('system-performance').textContent = `${performance.cpu_usage || 0}% CPU`;
+        
+        // Calculate uptime
+        const uptime = status.uptime || '0 seconds';
+        document.getElementById('system-uptime').textContent = uptime;
+        
+        // Load default tab content
+        loadSystemMetrics();
+        
+    } catch (error) {
+        console.error('Error loading system status:', error);
+        showToast('Failed to load system status', 'error');
+    }
+}
+
+function switchMonitoringTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.monitoring-tab').forEach(tab => {
+        tab.classList.remove('active', 'border-b-2', 'border-blue-500', 'text-blue-600');
+        tab.classList.add('text-gray-500', 'hover:text-gray-700');
+    });
+    
+    // Hide all tab contents
+    document.querySelectorAll('.monitoring-tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Show selected tab
+    const activeTab = document.querySelector(`[onclick="switchMonitoringTab('${tabName}')"]`);
+    activeTab.classList.remove('text-gray-500', 'hover:text-gray-700');
+    activeTab.classList.add('active', 'border-b-2', 'border-blue-500', 'text-blue-600');
+    
+    document.getElementById(`monitoring-${tabName}-tab`).classList.remove('hidden');
+    
+    // Load content based on tab
+    switch (tabName) {
+        case 'metrics':
+            loadSystemMetrics();
+            break;
+        case 'logs':
+            loadSystemLogs();
+            break;
+        case 'performance':
+            loadPerformanceMetrics();
+            break;
+        case 'health':
+            loadHealthCheck();
+            break;
+    }
+}
+
+async function loadSystemMetrics() {
+    try {
+        const api = new CVEPlatformAPI();
+        const metrics = await api.getSystemMetrics();
+        
+        const container = document.getElementById('system-metrics-content');
+        container.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-blue-900">CPU Usage</h4>
+                    <p class="text-2xl font-bold text-blue-600">${metrics.cpu_usage || 0}%</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-green-900">Memory Usage</h4>
+                    <p class="text-2xl font-bold text-green-600">${metrics.memory_usage || 0}%</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-purple-900">Disk Usage</h4>
+                    <p class="text-2xl font-bold text-purple-600">${metrics.disk_usage || 0}%</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 class="text-lg font-medium text-gray-900 mb-3">API Requests</h4>
+                    <p class="text-3xl font-bold text-gray-900">${metrics.api_requests || 0}</p>
+                    <p class="text-sm text-gray-500">Last 24 hours</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 class="text-lg font-medium text-gray-900 mb-3">Active Connections</h4>
+                    <p class="text-3xl font-bold text-gray-900">${metrics.active_connections || 0}</p>
+                    <p class="text-sm text-gray-500">Current connections</p>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading system metrics:', error);
+        showToast('Failed to load system metrics', 'error');
+    }
+}
+
+async function loadSystemLogs() {
+    try {
+        const api = new CVEPlatformAPI();
+        const logs = await api.getSystemLogs();
+        
+        const container = document.getElementById('system-logs-content');
+        if (!logs || logs.length === 0) {
+            container.innerHTML = '<p class="text-green-400">No logs available</p>';
+            return;
+        }
+        
+        container.innerHTML = logs.map(log => 
+            `<div class="mb-1">[${log.timestamp}] ${log.level}: ${log.message}</div>`
+        ).join('');
+        
+        // Auto-scroll to bottom
+        container.scrollTop = container.scrollHeight;
+        
+    } catch (error) {
+        console.error('Error loading system logs:', error);
+        document.getElementById('system-logs-content').innerHTML = 
+            '<p class="text-red-400">Failed to load system logs</p>';
+    }
+}
+
+async function loadPerformanceMetrics() {
+    try {
+        const api = new CVEPlatformAPI();
+        const performance = await api.getPerformanceMetrics();
+        
+        const container = document.getElementById('performance-metrics-content');
+        container.innerHTML = `
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                        <h4 class="text-lg font-medium text-gray-900 mb-3">Response Times</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Average</span>
+                                <span class="font-medium">${performance.avg_response_time || 0}ms</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">95th Percentile</span>
+                                <span class="font-medium">${performance.p95_response_time || 0}ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                        <h4 class="text-lg font-medium text-gray-900 mb-3">Throughput</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Requests/sec</span>
+                                <span class="font-medium">${performance.requests_per_second || 0}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Errors/sec</span>
+                                <span class="font-medium">${performance.errors_per_second || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading performance metrics:', error);
+        showToast('Failed to load performance metrics', 'error');
+    }
+}
+
+async function loadHealthCheck() {
+    try {
+        const api = new CVEPlatformAPI();
+        const health = await api.getHealthCheck();
+        
+        const container = document.getElementById('health-check-content');
+        container.innerHTML = `
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-${health.status === 'healthy' ? 'green' : 'red'}-50 border border-${health.status === 'healthy' ? 'green' : 'red'}-200 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-${health.status === 'healthy' ? 'check-circle text-green-600' : 'exclamation-triangle text-red-600'} mr-3"></i>
+                        <span class="font-medium">Overall Status: ${health.status || 'Unknown'}</span>
+                    </div>
+                    <span class="text-sm text-gray-500">Last checked: ${new Date().toLocaleString()}</span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    ${Object.entries(health.services || {}).map(([service, status]) => `
+                        <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                            <span class="text-gray-700">${service}</span>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${status === 'healthy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${status}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading health check:', error);
+        showToast('Failed to load health check', 'error');
+    }
+}
+
+// User Management Functions
+async function registerNewUser() {
+    const username = document.getElementById('new-username').value;
+    const email = document.getElementById('new-email').value;
+    const password = document.getElementById('new-password').value;
+    const role = document.getElementById('new-user-role').value;
+    const fullName = document.getElementById('new-fullname').value;
+    
+    if (!username || !email || !password) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    try {
+        const api = new CVEPlatformAPI();
+        const userData = {
+            username,
+            email,
+            password,
+            role,
+            full_name: fullName || undefined
+        };
+        
+        await api.register(userData);
+        showToast('User registered successfully!', 'success');
+        
+        // Clear form
+        document.getElementById('new-username').value = '';
+        document.getElementById('new-email').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('new-fullname').value = '';
+        
+        // Refresh users list
+        loadUsers();
+        
+    } catch (error) {
+        console.error('Error registering user:', error);
+        showToast('Failed to register user', 'error');
+    }
+}
+
+async function loadUsers() {
+    try {
+        const api = new CVEPlatformAPI();
+        const users = await api.getAllUsers();
+        displayUsers(users);
+    } catch (error) {
+        console.error('Error loading users:', error);
+        showToast('Failed to load users', 'error');
+    }
+}
+
+function displayUsers(users) {
+    const container = document.getElementById('users-list');
+    if (!users || users.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-users text-4xl mb-4"></i>
+                <p>No users found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    ${users.map(user => `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                            <i class="fas fa-user text-gray-600"></i>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">${user.full_name || user.username}</div>
+                                        <div class="text-sm text-gray-500">${user.email}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeClass(user.role)}">
+                                    ${user.role}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    ${user.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="editUser('${user.user_id}')" class="text-blue-600 hover:text-blue-900 mr-3">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="toggleUserStatus('${user.user_id}', ${user.is_active})" class="text-yellow-600 hover:text-yellow-900 mr-3">
+                                    <i class="fas fa-${user.is_active ? 'pause' : 'play'}"></i>
+                                </button>
+                                <button onclick="deleteUser('${user.user_id}')" class="text-red-600 hover:text-red-900">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function getRoleBadgeClass(role) {
+    switch (role) {
+        case 'admin': return 'bg-red-100 text-red-800';
+        case 'analyst': return 'bg-blue-100 text-blue-800';
+        case 'user': return 'bg-gray-100 text-gray-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+}
+
+async function showUserStats() {
+    try {
+        const api = new CVEPlatformAPI();
+        const stats = await api.getUserStats();
+        
+        const statsDiv = document.getElementById('user-stats');
+        const contentDiv = document.getElementById('user-stats-content');
+        
+        contentDiv.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-blue-900">Total Users</h4>
+                    <p class="text-2xl font-bold text-blue-600">${stats.total_users}</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-green-900">Active Users</h4>
+                    <p class="text-2xl font-bold text-green-600">${stats.active_users}</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-purple-900">Recent Logins</h4>
+                    <p class="text-2xl font-bold text-purple-600">${stats.recent_logins}</p>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-yellow-900">API Keys</h4>
+                    <p class="text-2xl font-bold text-yellow-600">${stats.api_keys_count}</p>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-lg font-medium text-gray-900 mb-3">Users by Role</h4>
+                <div class="space-y-2">
+                    ${Object.entries(stats.users_by_role).map(([role, count]) => `
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 capitalize">${role}</span>
+                            <span class="font-medium">${count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        statsDiv.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading user stats:', error);
+        showToast('Failed to load user statistics', 'error');
+    }
+}
+
+async function generateAPIKey() {
+    const name = document.getElementById('api-key-name').value;
+    const permissionsSelect = document.getElementById('api-key-permissions');
+    const permissions = Array.from(permissionsSelect.selectedOptions).map(option => option.value);
+    
+    if (!name) {
+        showToast('Please enter an API key name', 'error');
+        return;
+    }
+    
+    try {
+        const api = new CVEPlatformAPI();
+        const keyData = {
+            name,
+            permissions
+        };
+        
+        const result = await api.generateAPIKey(keyData);
+        
+        const resultDiv = document.getElementById('api-key-result');
+        resultDiv.innerHTML = `
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-green-700 mb-1">API Key Generated</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" value="${result.key}" readonly class="flex-1 px-3 py-2 border border-green-300 rounded-md bg-green-50 text-sm font-mono">
+                        <button onclick="copyToClipboard('${result.key}')" class="text-green-600 hover:text-green-800">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-sm text-green-700">
+                    <p><strong>Key ID:</strong> ${result.key_id}</p>
+                    <p><strong>Permissions:</strong> ${result.permissions.join(', ')}</p>
+                    <p class="text-red-600 mt-2"><strong>Warning:</strong> Save this key securely. It won't be shown again.</p>
+                </div>
+            </div>
+        `;
+        resultDiv.classList.remove('hidden');
+        
+        // Clear form
+        document.getElementById('api-key-name').value = '';
+        permissionsSelect.selectedIndex = -1;
+        
+        showToast('API key generated successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Error generating API key:', error);
+        showToast('Failed to generate API key', 'error');
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy to clipboard', 'error');
+    });
+}
+
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('CVE Analysis Platform initializing...');
@@ -4732,81 +5244,325 @@ async function performLogin() {
     }
 }
 
-function generateAdvancedAnalysisDisplay(analysis) {
+function parseAnalysisData(result) {
+    console.log('Parsing analysis data:', result);
+    
+    let analysisData = {
+        isStructured: false,
+        data: null
+    };
+    
+    try {
+        // Check for different response formats
+        if (result.structured_analysis) {
+            // Direct structured analysis
+            analysisData.data = typeof result.structured_analysis === 'string' 
+                ? JSON.parse(result.structured_analysis) 
+                : result.structured_analysis;
+            analysisData.isStructured = true;
+        } else if (result.analysis) {
+            // Analysis field
+            analysisData.data = typeof result.analysis === 'string' 
+                ? JSON.parse(result.analysis) 
+                : result.analysis;
+            analysisData.isStructured = true;
+        } else if (result.response) {
+            // Try to extract JSON from response text
+            const responseText = result.response;
+            
+            // Look for JSON patterns in the response
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    analysisData.data = JSON.parse(jsonMatch[0]);
+                    analysisData.isStructured = true;
+                } catch (e) {
+                    // If JSON parsing fails, treat as plain text
+                    analysisData.data = responseText;
+                    analysisData.isStructured = false;
+                }
+            } else {
+                // Plain text response
+                analysisData.data = responseText;
+                analysisData.isStructured = false;
+            }
+        } else if (result.data) {
+            // Data field
+            analysisData.data = result.data;
+            analysisData.isStructured = typeof result.data === 'object';
+        } else {
+            // Fallback to entire result
+            analysisData.data = result;
+            analysisData.isStructured = typeof result === 'object' && result !== null;
+        }
+    } catch (error) {
+        console.warn('Error parsing analysis data:', error);
+        // Fallback to raw response
+        analysisData.data = result.response || result.message || JSON.stringify(result, null, 2);
+        analysisData.isStructured = false;
+    }
+    
+    console.log('Parsed analysis data:', analysisData);
+    return analysisData;
+}
+
+function generateAdvancedAnalysisDisplay(analysis, cveId) {
     return `
-        <div class="bg-white rounded-lg border border-gray-200">
-            <div class="border-b border-gray-200">
-                <nav class="flex space-x-8 px-6">
-                    <button onclick="switchAnalysisTab('exploitation')" class="analysis-tab active border-b-2 border-red-500 text-red-600 py-4 px-1">
-                        <i class="fas fa-crosshairs mr-2"></i>Exploitation Analysis
-                    </button>
-                    <button onclick="switchAnalysisTab('technical')" class="analysis-tab text-gray-500 hover:text-gray-700 py-4 px-1">
-                        <i class="fas fa-cogs mr-2"></i>Technical Details
-                    </button>
-                    <button onclick="switchAnalysisTab('impact')" class="analysis-tab text-gray-500 hover:text-gray-700 py-4 px-1">
-                        <i class="fas fa-exclamation-circle mr-2"></i>Impact Analysis
-                    </button>
-                </nav>
-            </div>
-            
-            <div id="exploitation-tab" class="analysis-tab-content p-6">
-                <h4 class="text-lg font-semibold text-gray-900 mb-4">🎯 Exploitation Analysis</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
-                        <h5 class="font-medium text-red-900 mb-2">Difficulty Assessment</h5>
-                        <div class="space-y-2">
-                            <div class="flex justify-between">
-                                <span class="text-sm text-red-700">Exploitation Difficulty:</span>
-                                <span class="text-sm font-medium text-red-900">${analysis.exploitation_analysis?.exploitation_difficulty || 'Unknown'}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-sm text-red-700">Time to Exploit:</span>
-                                <span class="text-sm font-medium text-red-900">${analysis.exploitation_analysis?.time_to_exploit || 'Unknown'}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-sm text-red-700">Skill Level Required:</span>
-                                <span class="text-sm font-medium text-red-900">${analysis.exploitation_analysis?.skill_level_required || 'Unknown'}</span>
-                            </div>
-                        </div>
+        <div class="space-y-6">
+            <!-- Analysis Header -->
+            <div class="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-lg border border-red-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900">🔍 Advanced CVE Analysis</h3>
+                        <p class="text-sm text-gray-600 mt-1">Elite-level vulnerability assessment for ${cveId || 'Unknown CVE'}</p>
                     </div>
-                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <h5 class="font-medium text-blue-900 mb-2">🔍 Vulnerability Classification</h5>
-                        <div class="space-y-2 text-sm text-blue-800">
-                            <div><strong>Type:</strong> ${analysis.vulnerability_classification?.primary_type || 'Unknown'}</div>
-                            <div><strong>CWE Analysis:</strong> ${analysis.vulnerability_classification?.cwe_analysis || 'Not available'}</div>
-                        </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                            <i class="fas fa-brain mr-1"></i>AI Expert Analysis
+                        </span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            <i class="fas fa-check mr-1"></i>Complete
+                        </span>
                     </div>
                 </div>
             </div>
             
-            <div id="technical-tab" class="analysis-tab-content hidden p-6">
-                <h4 class="text-lg font-semibold text-gray-900 mb-4">⚙️ Technical Details</h4>
-                <div class="prose max-w-none">
-                    ${analysis.technical_exploitation_details ? JSON.stringify(analysis.technical_exploitation_details, null, 2) : 'No technical details available'}
+            <!-- Enhanced Quick Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-red-100 rounded-lg">
+                            <i class="fas fa-exclamation-triangle text-red-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-500">Risk Level</p>
+                            <p class="text-lg font-semibold text-gray-900">${analysis?.confidence_assessment?.overall_confidence || analysis?.risk_score || 'N/A'}/100</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-yellow-100 rounded-lg">
+                            <i class="fas fa-crosshairs text-yellow-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-500">Exploitation</p>
+                            <p class="text-lg font-semibold text-gray-900">${analysis?.exploitation_analysis?.exploitation_difficulty || 'Unknown'}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-purple-100 rounded-lg">
+                            <i class="fas fa-clock text-purple-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-500">Time to Exploit</p>
+                            <p class="text-lg font-semibold text-gray-900">${analysis?.exploitation_analysis?.time_to_exploit || 'Unknown'}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-blue-100 rounded-lg">
+                            <i class="fas fa-user-ninja text-blue-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-500">Skill Level</p>
+                            <p class="text-lg font-semibold text-gray-900">${analysis?.exploitation_analysis?.skill_level_required || 'Unknown'}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div id="impact-tab" class="analysis-tab-content hidden p-6">
-                <h4 class="text-lg font-semibold text-gray-900 mb-4">💥 Impact Analysis</h4>
-                <div class="prose max-w-none">
-                    ${analysis.impact_analysis ? JSON.stringify(analysis.impact_analysis, null, 2) : 'No impact analysis available'}
+            <!-- Analysis Content -->
+            <div class="bg-white rounded-lg border border-gray-200">
+                <div class="border-b border-gray-200">
+                    <nav class="flex space-x-8 px-6">
+                        <button onclick="switchAnalysisTab('exploitation')" class="analysis-tab active border-b-2 border-red-500 text-red-600 py-4 px-1">
+                            <i class="fas fa-crosshairs mr-2"></i>Exploitation Analysis
+                        </button>
+                        <button onclick="switchAnalysisTab('technical')" class="analysis-tab text-gray-500 hover:text-gray-700 py-4 px-1">
+                            <i class="fas fa-cogs mr-2"></i>Technical Details
+                        </button>
+                        <button onclick="switchAnalysisTab('impact')" class="analysis-tab text-gray-500 hover:text-gray-700 py-4 px-1">
+                            <i class="fas fa-exclamation-circle mr-2"></i>Impact Analysis
+                        </button>
+                    </nav>
                 </div>
+                
+                <div id="exploitation-tab" class="analysis-tab-content p-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">🎯 Exploitation Analysis</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                            <h5 class="font-medium text-red-900 mb-2">Difficulty Assessment</h5>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-sm text-red-700">Exploitation Difficulty:</span>
+                                    <span class="text-sm font-medium text-red-900">${analysis.exploitation_analysis?.exploitation_difficulty || 'Unknown'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm text-red-700">Time to Exploit:</span>
+                                    <span class="text-sm font-medium text-red-900">${analysis.exploitation_analysis?.time_to_exploit || 'Unknown'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm text-red-700">Skill Level Required:</span>
+                                    <span class="text-sm font-medium text-red-900">${analysis.exploitation_analysis?.skill_level_required || 'Unknown'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <h5 class="font-medium text-blue-900 mb-2">🔍 Vulnerability Classification</h5>
+                            <div class="space-y-2 text-sm text-blue-800">
+                                <div><strong>Type:</strong> ${analysis.vulnerability_classification?.primary_type || 'Unknown'}</div>
+                                <div><strong>CWE Analysis:</strong> ${analysis.vulnerability_classification?.cwe_analysis || 'Not available'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="technical-tab" class="analysis-tab-content hidden p-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">⚙️ Technical Details</h4>
+                    <div class="prose max-w-none">
+                        ${analysis.technical_exploitation_details ? formatAnalysisSection(analysis.technical_exploitation_details) : 'No technical details available'}
+                    </div>
+                </div>
+                
+                <div id="impact-tab" class="analysis-tab-content hidden p-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">💥 Impact Analysis</h4>
+                    <div class="prose max-w-none">
+                        ${analysis.impact_analysis ? formatAnalysisSection(analysis.impact_analysis) : 'No impact analysis available'}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+                <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    <i class="fas fa-download mr-2"></i>Export Report
+                </button>
+                <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
+                </button>
+                <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    <i class="fas fa-code mr-2"></i>Generate PoC
+                </button>
+                <button onclick="shareAnalysis('${cveId || 'unknown'}')" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-share mr-2"></i>Share Analysis
+                </button>
             </div>
         </div>
     `;
 }
 
-function generateBasicAnalysisDisplay(result) {
+function generateBasicAnalysisDisplay(result, cveId) {
+    const analysisText = result.response || result.analysis || result.message || 'No detailed analysis available.';
+    
     return `
-        <div class="bg-white rounded-lg border border-gray-200">
-            <div class="p-6">
-                <h4 class="text-lg font-semibold text-gray-900 mb-4">Analysis Results</h4>
-                <div class="prose max-w-none">
-                    ${result.response ? result.response.replace(/\n/g, '<br>') : 'No detailed analysis available.'}
+        <div class="space-y-6">
+            <!-- Analysis Header -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900">📊 CVE Analysis Results</h3>
+                        <p class="text-sm text-gray-600 mt-1">Comprehensive vulnerability analysis for ${cveId || 'Unknown CVE'}</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            <i class="fas fa-robot mr-1"></i>AI Analysis
+                        </span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            <i class="fas fa-check mr-1"></i>Complete
+                        </span>
+                    </div>
                 </div>
+            </div>
+            
+            <!-- Analysis Content -->
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+                <div class="p-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-file-alt mr-2 text-blue-600"></i>Analysis Report
+                    </h4>
+                    <div class="prose max-w-none">
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            ${formatAnalysisText(analysisText)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+                <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    <i class="fas fa-download mr-2"></i>Export Report
+                </button>
+                <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
+                </button>
+                <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    <i class="fas fa-code mr-2"></i>Generate PoC
+                </button>
+                <button onclick="shareAnalysis('${cveId || 'unknown'}')" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-share mr-2"></i>Share Analysis
+                </button>
             </div>
         </div>
     `;
+}
+
+function formatAnalysisSection(data) {
+    if (typeof data === 'string') {
+        return formatAnalysisText(data);
+    } else if (typeof data === 'object' && data !== null) {
+        return formatObjectAsHTML(data);
+    } else {
+        return 'No data available';
+    }
+}
+
+function formatAnalysisText(text) {
+    if (!text) return 'No analysis available';
+    
+    // Convert newlines to HTML breaks and preserve formatting
+    return text
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/^/, '<p>')
+        .replace(/$/, '</p>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code class="bg-gray-200 px-1 rounded">$1</code>');
+}
+
+function formatObjectAsHTML(obj) {
+    let html = '<div class="space-y-4">';
+    
+    for (const [key, value] of Object.entries(obj)) {
+        const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        
+        html += `<div class="border-l-4 border-blue-500 pl-4">`;
+        html += `<h5 class="font-semibold text-gray-900 mb-2">${formattedKey}</h5>`;
+        
+        if (typeof value === 'string') {
+            html += `<div class="text-gray-700">${formatAnalysisText(value)}</div>`;
+        } else if (Array.isArray(value)) {
+            html += '<ul class="list-disc list-inside text-gray-700 space-y-1">';
+            value.forEach(item => {
+                html += `<li>${typeof item === 'string' ? item : JSON.stringify(item)}</li>`;
+            });
+            html += '</ul>';
+        } else if (typeof value === 'object' && value !== null) {
+            html += formatObjectAsHTML(value);
+        } else {
+            html += `<div class="text-gray-700">${value}</div>`;
+        }
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    return html;
 }
 
 function switchAnalysisTab(tabName) {
@@ -4831,4 +5587,28 @@ function switchAnalysisTab(tabName) {
             button.classList.add('active', 'border-red-500', 'text-red-600');
         }
     });
+}
+
+function shareAnalysis(cveId) {
+    const analysisData = {
+        cve_id: cveId,
+        timestamp: new Date().toISOString(),
+        url: window.location.href
+    };
+    
+    if (navigator.share) {
+        navigator.share({
+            title: `CVE Analysis: ${cveId}`,
+            text: `Check out this CVE analysis for ${cveId}`,
+            url: window.location.href
+        }).catch(err => console.log('Error sharing:', err));
+    } else {
+        // Fallback: copy to clipboard
+        const shareText = `CVE Analysis: ${cveId}\n${window.location.href}`;
+        navigator.clipboard.writeText(shareText).then(() => {
+            showToast('Analysis link copied to clipboard!', 'success');
+        }).catch(() => {
+            showToast('Could not copy to clipboard', 'error');
+        });
+    }
 }

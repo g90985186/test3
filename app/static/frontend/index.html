@@ -36,6 +36,15 @@
                         <button onclick="showTimeline()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="View Timeline">
                             <i class="fas fa-clock mr-2" aria-hidden="true"></i>Timeline
                         </button>
+                        <button onclick="showReports()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="View Reports">
+                            <i class="fas fa-file-alt mr-2" aria-hidden="true"></i>Reports
+                        </button>
+                        <button onclick="showMonitoring()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="System Monitoring">
+                            <i class="fas fa-heartbeat mr-2" aria-hidden="true"></i>Monitoring
+                        </button>
+                        <button onclick="showUserManagement()" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700" aria-label="User Management">
+                            <i class="fas fa-users mr-2" aria-hidden="true"></i>Users
+                        </button>
                         
                         <div class="flex items-center space-x-3 ml-4 border-l pl-4 border-blue-700">
                             <!-- Notifications -->
@@ -1292,6 +1301,298 @@
                     
                     <div id="timeline-container">
                         <!-- Timeline visualization will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="reports-section" class="section hidden" aria-label="Reports Management">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Reports Management</h2>
+                <p class="text-gray-600 mb-6">Generate, manage, and download comprehensive security reports</p>
+                
+                <!-- Report Generation -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Generate New Report</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+                            <select id="report-type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="dashboard">Dashboard Summary</option>
+                                <option value="cve_analysis">CVE Analysis</option>
+                                <option value="watchlist">Watchlist Report</option>
+                                <option value="custom">Custom Report</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Format</label>
+                            <select id="report-format" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="pdf">PDF</option>
+                                <option value="html">HTML</option>
+                                <option value="csv">CSV</option>
+                                <option value="json">JSON</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Template</label>
+                            <select id="report-template" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="standard">Standard</option>
+                                <option value="executive">Executive Summary</option>
+                                <option value="technical">Technical Details</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Report Title</label>
+                        <input type="text" id="report-title" placeholder="Enter custom report title (optional)" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="generateReport()" class="btn-primary">
+                        <i class="fas fa-file-alt mr-2"></i>Generate Report
+                    </button>
+                </div>
+
+                <!-- Reports List -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Generated Reports</h3>
+                        <div class="flex space-x-2">
+                            <button onclick="loadReports()" class="btn-secondary">
+                                <i class="fas fa-sync mr-2"></i>Refresh
+                            </button>
+                            <button onclick="showReportMetrics()" class="btn-secondary">
+                                <i class="fas fa-chart-bar mr-2"></i>Metrics
+                            </button>
+                        </div>
+                    </div>
+                    <div id="reports-list">
+                        <!-- Reports will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Report Metrics -->
+                <div id="report-metrics" class="hidden bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Report Generation Metrics</h3>
+                    <div id="report-metrics-content">
+                        <!-- Metrics will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- System Monitoring Section -->
+        <section id="monitoring-section" class="section hidden" aria-label="System Monitoring">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">System Monitoring</h2>
+                <p class="text-gray-600 mb-6">Monitor system health, performance, and operational metrics</p>
+                
+                <!-- System Status Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-green-100 rounded-lg">
+                                <i class="fas fa-heartbeat text-green-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">System Health</p>
+                                <p id="system-health-status" class="text-lg font-semibold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-blue-100 rounded-lg">
+                                <i class="fas fa-server text-blue-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">System Status</p>
+                                <p id="system-status" class="text-lg font-semibold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-purple-100 rounded-lg">
+                                <i class="fas fa-tachometer-alt text-purple-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Performance</p>
+                                <p id="system-performance" class="text-lg font-semibold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-yellow-100 rounded-lg">
+                                <i class="fas fa-chart-line text-yellow-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Uptime</p>
+                                <p id="system-uptime" class="text-lg font-semibold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monitoring Tabs -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="border-b border-gray-200">
+                        <nav class="flex space-x-8 px-6">
+                            <button onclick="switchMonitoringTab('metrics')" class="monitoring-tab active border-b-2 border-blue-500 text-blue-600 py-4 px-1">
+                                <i class="fas fa-chart-bar mr-2"></i>Metrics
+                            </button>
+                            <button onclick="switchMonitoringTab('logs')" class="monitoring-tab text-gray-500 hover:text-gray-700 py-4 px-1">
+                                <i class="fas fa-file-alt mr-2"></i>System Logs
+                            </button>
+                            <button onclick="switchMonitoringTab('performance')" class="monitoring-tab text-gray-500 hover:text-gray-700 py-4 px-1">
+                                <i class="fas fa-tachometer-alt mr-2"></i>Performance
+                            </button>
+                            <button onclick="switchMonitoringTab('health')" class="monitoring-tab text-gray-500 hover:text-gray-700 py-4 px-1">
+                                <i class="fas fa-heartbeat mr-2"></i>Health Check
+                            </button>
+                        </nav>
+                    </div>
+                    
+                    <!-- Metrics Tab -->
+                    <div id="monitoring-metrics-tab" class="monitoring-tab-content p-6">
+                        <div id="system-metrics-content">
+                            <!-- System metrics will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Logs Tab -->
+                    <div id="monitoring-logs-tab" class="monitoring-tab-content hidden p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-lg font-medium text-gray-900">System Logs</h4>
+                            <div class="flex space-x-2">
+                                <select id="log-level-filter" class="px-3 py-2 border border-gray-300 rounded-md">
+                                    <option value="">All Levels</option>
+                                    <option value="ERROR">Error</option>
+                                    <option value="WARN">Warning</option>
+                                    <option value="INFO">Info</option>
+                                    <option value="DEBUG">Debug</option>
+                                </select>
+                                <button onclick="loadSystemLogs()" class="btn-secondary">
+                                    <i class="fas fa-sync mr-2"></i>Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div id="system-logs-content" class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
+                            <!-- System logs will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Tab -->
+                    <div id="monitoring-performance-tab" class="monitoring-tab-content hidden p-6">
+                        <div id="performance-metrics-content">
+                            <!-- Performance metrics will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Health Check Tab -->
+                    <div id="monitoring-health-tab" class="monitoring-tab-content hidden p-6">
+                        <div id="health-check-content">
+                            <!-- Health check results will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Management Section -->
+        <section id="user-management-section" class="section hidden" aria-label="User Management">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">User Management</h2>
+                <p class="text-gray-600 mb-6">Manage users, roles, and access permissions</p>
+                
+                <!-- User Registration -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Register New User</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                            <input type="text" id="new-username" placeholder="Enter username" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" id="new-email" placeholder="Enter email address" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                            <input type="password" id="new-password" placeholder="Enter password" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                            <select id="new-user-role" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="user">User</option>
+                                <option value="analyst">Analyst</option>
+                                <option value="admin">Administrator</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <input type="text" id="new-fullname" placeholder="Enter full name (optional)" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="registerNewUser()" class="btn-primary">
+                        <i class="fas fa-user-plus mr-2"></i>Register User
+                    </button>
+                </div>
+
+                <!-- Users List -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">System Users</h3>
+                        <div class="flex space-x-2">
+                            <button onclick="loadUsers()" class="btn-secondary">
+                                <i class="fas fa-sync mr-2"></i>Refresh
+                            </button>
+                            <button onclick="showUserStats()" class="btn-secondary">
+                                <i class="fas fa-chart-pie mr-2"></i>Statistics
+                            </button>
+                        </div>
+                    </div>
+                    <div id="users-list">
+                        <!-- Users will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- User Statistics -->
+                <div id="user-stats" class="hidden bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">User Statistics</h3>
+                    <div id="user-stats-content">
+                        <!-- User statistics will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- API Key Management -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">API Key Management</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Key Name</label>
+                            <input type="text" id="api-key-name" placeholder="Enter API key name" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
+                            <select id="api-key-permissions" multiple class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="read">Read Access</option>
+                                <option value="write">Write Access</option>
+                                <option value="admin">Admin Access</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="generateAPIKey()" class="btn-primary">
+                        <i class="fas fa-key mr-2"></i>Generate API Key
+                    </button>
+                    <div id="api-key-result" class="hidden mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <!-- API key result will be shown here -->
                     </div>
                 </div>
             </div>
