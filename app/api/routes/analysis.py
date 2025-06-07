@@ -597,30 +597,12 @@ async def _fetch_cve_data(cve_id: str) -> Dict[str, Any]:
         if nvd_result.get("success") and nvd_result.get("cve"):
             return nvd_result["cve"]
         
-        # Fallback to mock data if nothing found
-        logger.warning(f"CVE {cve_id} not found in database or NVD, using fallback data")
-    return {
-            "cve_id": cve_id,
-        "description": f"Security vulnerability {cve_id} - detailed analysis required",
-            "severity": "Unknown",
-            "cvss_v3_score": None,
-            "published_date": "Unknown",
-            "cwe_ids": [],
-            "affected_products": []
-        }
-        
+        # If not found anywhere, raise 404
+        logger.warning(f"CVE {cve_id} not found in database or NVD.")
+        raise HTTPException(status_code=404, detail=f"CVE {cve_id} not found in database or NVD.")
     except Exception as e:
         logger.error(f"Error fetching CVE data for {cve_id}: {str(e)}")
-        # Return minimal fallback data
-        return {
-            "cve_id": cve_id,
-            "description": f"CVE {cve_id} - data fetch failed",
-            "severity": "Unknown",
-            "cvss_v3_score": None,
-            "published_date": "Unknown",
-            "cwe_ids": [],
-            "affected_products": []
-    }
+        raise HTTPException(status_code=500, detail=f"Error fetching CVE data for {cve_id}: {str(e)}")
 
 def _extract_attack_vectors(ai_response: str) -> List[str]:
     """Extract attack vectors from AI response"""

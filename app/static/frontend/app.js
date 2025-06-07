@@ -1082,12 +1082,9 @@ function hideAllSections() {
 // Dashboard Functions
 async function loadDashboardData() {
     console.log('loadDashboardData() called');
-    // Load initial data for better user experience
-    showInitialDashboardData();
     
-    // Try to fetch real data in background (optional) - only if authenticated
     if (!window.authManager || !window.authManager.isAuthenticated()) {
-        console.log('User not authenticated, showing sample data only');
+        console.log('User not authenticated');
         return;
     }
     
@@ -1109,8 +1106,7 @@ async function loadDashboardData() {
         
     } catch (error) {
         console.log('Dashboard data fetch failed:', error);
-        // Initial data already loaded, so continue with that
-        showToast('Using sample data - some API endpoints may not be available', 'info');
+        showToast('Failed to load dashboard data', 'error');
     } finally {
         utils.setLoading(false);
     }
@@ -2117,49 +2113,6 @@ function displayNoResults(resultsContent, resultsCount, resultsSummary) {
     `;
 }
 
-
-// Sample search results for when API is not available
-function showSampleSearchResults(query, resultsContent, resultsCount, resultsSummary) {
-    const sampleResults = [
-        {
-            cve_id: 'CVE-2024-0001',
-            description: 'Remote code execution vulnerability in example application',
-            severity: 'CRITICAL',
-            cvss_score: '9.8',
-            published_date: '2024-01-15',
-            source: 'NVD'
-        },
-        {
-            cve_id: 'CVE-2024-0002',
-            description: 'SQL injection vulnerability in web interface',
-            severity: 'HIGH',
-            cvss_score: '8.1',
-            published_date: '2024-01-10',
-            source: 'NVD'
-        },
-        {
-            cve_id: 'CVE-2024-0003',
-            description: 'Cross-site scripting vulnerability in user input',
-            severity: 'MEDIUM',
-            cvss_score: '6.1',
-            published_date: '2024-01-05',
-            source: 'NVD'
-        }
-    ];
-    
-    // Filter sample results based on query if provided
-    const filteredResults = query ? 
-        sampleResults.filter(cve => 
-            cve.cve_id.toLowerCase().includes(query.toLowerCase()) ||
-            cve.description.toLowerCase().includes(query.toLowerCase())
-        ) : sampleResults;
-    
-    if (resultsCount) resultsCount.textContent = `${filteredResults.length} results`;
-    if (resultsSummary) resultsSummary.textContent = 'Showing sample results';
-    
-    displaySearchResults({results: filteredResults, total: filteredResults.length}, resultsContent, resultsCount, resultsSummary);
-}
-
 // Reset all filters with null checks
 function resetFilters() {
     // Clear all inputs with null checks
@@ -3003,12 +2956,11 @@ function viewCVE(cveId) {
 
 // Generate realistic CVE details HTML
 async function getCVEDetailsHTML(cveId) {
-    let cveData;
     try {
-        // Try to fetch real CVE data from the API
+        // Fetch real CVE data from the API
         const apiData = await utils.fetchWithRetry(`${API_BASE}/cve/${cveId}`);
         // Transform API data to match expected format
-        cveData = {
+        const cveData = {
             severity: apiData.severity_level || 'Unknown',
             cvssScore: apiData.cvss_v3_score || 'N/A',
             publishedDate: apiData.published_date || 'Unknown',
@@ -3030,127 +2982,11 @@ async function getCVEDetailsHTML(cveId) {
                 { name: 'MITRE CVE', url: `https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId}` }
             ]
         };
+        return cveData;
     } catch (error) {
         console.error('Failed to fetch CVE details:', error);
-        // Fallback to generated data
-        cveData = generateCVEDetails(cveId);
+        throw error;
     }
-    
-    return `
-        <div class="space-y-6">
-            <!-- Summary Section -->
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="text-center">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getSeverityColor(cveData.severity)}">
-                            ${cveData.severity}
-                        </span>
-                        <p class="text-sm text-gray-600 mt-1">Severity</p>
-                    </div>
-                    <div class="text-center">
-                        <span class="text-2xl font-bold text-gray-900">${cveData.cvssScore}</span>
-                        <p class="text-sm text-gray-600">CVSS Score</p>
-                    </div>
-                    <div class="text-center">
-                        <span class="text-lg font-semibold text-gray-900">${cveData.publishedDate}</span>
-                        <p class="text-sm text-gray-600">Published</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Description -->
-            <div>
-                <h4 class="text-lg font-semibold text-gray-900 mb-3">Description</h4>
-                <p class="text-gray-700 leading-relaxed">${cveData.description}</p>
-            </div>
-
-            <!-- Technical Details -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 class="text-lg font-semibold text-gray-900 mb-3">Affected Products</h4>
-                    <ul class="space-y-2">
-                        ${cveData.affectedProducts.map(product => `
-                            <li class="flex items-center">
-                                <i class="fas fa-circle text-xs text-blue-500 mr-2"></i>
-                                <span class="text-gray-700">${product}</span>
-                            </li>
-                        `).join('')}
-                    </ul>
-                </div>
-                
-                <div>
-                    <h4 class="text-lg font-semibold text-gray-900 mb-3">Attack Vector</h4>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Vector:</span>
-                            <span class="font-medium">${cveData.attackVector.vector}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Complexity:</span>
-                            <span class="font-medium">${cveData.attackVector.complexity}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Privileges Required:</span>
-                            <span class="font-medium">${cveData.attackVector.privileges}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">User Interaction:</span>
-                            <span class="font-medium">${cveData.attackVector.userInteraction}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Impact -->
-            <div>
-                <h4 class="text-lg font-semibold text-gray-900 mb-3">Impact</h4>
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="text-center p-3 bg-red-50 rounded-lg">
-                        <span class="text-red-800 font-medium">${cveData.impact.confidentiality}</span>
-                        <p class="text-xs text-red-600 mt-1">Confidentiality</p>
-                    </div>
-                    <div class="text-center p-3 bg-orange-50 rounded-lg">
-                        <span class="text-orange-800 font-medium">${cveData.impact.integrity}</span>
-                        <p class="text-xs text-orange-600 mt-1">Integrity</p>
-                    </div>
-                    <div class="text-center p-3 bg-yellow-50 rounded-lg">
-                        <span class="text-yellow-800 font-medium">${cveData.impact.availability}</span>
-                        <p class="text-xs text-yellow-600 mt-1">Availability</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- References -->
-            <div>
-                <h4 class="text-lg font-semibold text-gray-900 mb-3">References</h4>
-                <div class="space-y-2">
-                    ${cveData.references.map(ref => `
-                        <a href="${ref.url}" target="_blank" rel="noopener noreferrer" 
-                           class="flex items-center text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-external-link-alt mr-2"></i>
-                            <span>${ref.name}</span>
-                        </a>
-                    `).join('')}
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex flex-wrap gap-3 pt-4 border-t">
-                <button onclick="addToWatchlist('${cveId}', ${JSON.stringify(cveData).replace(/"/g, '&quot;')})" 
-                        class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors">
-                    <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
-                </button>
-                <button onclick="analyzeCVE('${cveId}'); this.closest('.fixed').remove();" 
-                        class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
-                    <i class="fas fa-brain mr-2"></i>AI Analysis
-                </button>
-                <button onclick="exportCVEDetails('${cveId}')" 
-                        class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                    <i class="fas fa-download mr-2"></i>Export Details
-                </button>
-            </div>
-        </div>
-    `;
 }
 
 // Generate realistic CVE details data
@@ -3605,7 +3441,7 @@ async function updateTimeline() {
             }
         });
         
-        const timelineData = response.timeline || generateTimelineData();
+        const timelineData = response.timeline;
         
         // Update stats
         updateTimelineStats(timelineData);
@@ -3627,25 +3463,7 @@ async function updateTimeline() {
         }
     } catch (error) {
         console.error('Timeline data fetch error:', error);
-        // Fallback to sample data
-        const sampleData = generateTimelineData();
-        updateTimelineStats(sampleData);
-        
-        const currentView = getCurrentTimelineView();
-        switch(currentView) {
-            case 'chart':
-                renderTimelineChart(sampleData);
-                break;
-            case 'calendar':
-                renderTimelineCalendar(sampleData);
-                break;
-            case 'list':
-                renderTimelineList(sampleData);
-                break;
-            default:
-                renderTimelineChart(sampleData);
-        }
-        showToast('Using cached timeline data', 'warning');
+        showToast('Failed to load timeline data', 'error');
     }
 }
 

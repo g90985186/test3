@@ -136,7 +136,7 @@ Be specific and provide remediation examples."""
         """Generate response from specified Ollama model"""
         # Check if AI service is available
         if not await self.health_check():
-            return self._fallback_response(prompt, model)
+            raise Exception("AI service is currently unavailable. Please ensure Ollama is running with the required models.")
         
         # Check cache first
         cache_key = hashlib.md5(f"{model}:{prompt}".encode()).hexdigest()

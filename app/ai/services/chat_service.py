@@ -69,14 +69,7 @@ class ChatService:
             
         except Exception as e:
             logger.error(f"Error getting chat response: {str(e)}")
-            return {
-                "response": "I'm sorry, I encountered an error processing your request. Please try again.",
-                "session_id": session_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "context_used": [],
-                "suggestions": ["Try asking about CVE search", "Ask about the platform features"],
-                "metadata": {"error": str(e)}
-            }
+            raise Exception("AI service is currently unavailable. Please ensure the AI models are running and try again.")
     
     def _load_chat_history(self, session_id: str) -> List[Dict]:
         """Load chat history for a session."""
@@ -198,18 +191,7 @@ Please provide a helpful, accurate, and concise response. Focus on cybersecurity
             
         except Exception as e:
             logger.error(f"Error getting AI response: {e}")
-            return self._get_fallback_response(question, conversation_type)
-    
-    def _get_fallback_response(self, question: str, conversation_type: str) -> str:
-        """Provide fallback response when AI is unavailable."""
-        fallback_responses = {
-            "general": "I'm here to help with CVE analysis and cybersecurity questions. The AI system is currently initializing - please try again in a moment.",
-            "cve_specific": "I can help you analyze CVEs and security vulnerabilities. Please ensure the AI models are running and try your question again.",
-            "analysis": "For vulnerability analysis, I need the AI models to be available. Please check the system status and try again.",
-            "help": "Here are some things I can help with:\n- CVE search and analysis\n- Security vulnerability assessment\n- Risk evaluation\n- Mitigation strategies\n\nPlease try your question again once the AI system is ready."
-        }
-        
-        return fallback_responses.get(conversation_type, fallback_responses["general"])
+            raise Exception("AI service is currently unavailable. Please ensure the AI models are running and try again.")
     
     def _generate_suggestions(self, conversation_type: str) -> List[str]:
         """Generate contextual suggestions for the user."""
