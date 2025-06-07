@@ -231,15 +231,40 @@ async function sendChatMessageToAPI(message) {
         
         hideTypingIndicator();
         
-        if (response.success) {
+        // Check if response has the expected structure
+        if (response.response) {
             addMessageToChat(response.response, 'ai');
+            
+            // Show suggestions if available
+            if (response.suggestions && response.suggestions.length > 0) {
+                const suggestionsHtml = response.suggestions.map(suggestion => 
+                    `<button onclick="sendQuickMessage('${suggestion}')" class="text-blue-600 hover:text-blue-800 text-sm mr-2 mb-1 px-2 py-1 border border-blue-300 rounded">${suggestion}</button>`
+                ).join('');
+                
+                const chatMessages = document.getElementById('chat-messages');
+                const suggestionsDiv = document.createElement('div');
+                suggestionsDiv.className = 'mb-4 text-left';
+                suggestionsDiv.innerHTML = `
+                    <div class="text-xs text-gray-500 mb-2">Suggested questions:</div>
+                    <div>${suggestionsHtml}</div>
+                `;
+                chatMessages.appendChild(suggestionsDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
         } else {
             addMessageToChat('Sorry, I encountered an error processing your request.', 'ai');
         }
     } catch (error) {
         console.error('Chat error:', error);
         hideTypingIndicator();
-        addMessageToChat('Sorry, I\'m currently unavailable. Please try again later.', 'ai');
+        
+        // Handle specific error types
+        if (error.message && error.message.includes('401')) {
+            addMessageToChat('Please login to use the AI chat feature.', 'ai');
+            showLoginModal();
+        } else {
+            addMessageToChat('Sorry, I\'m currently unavailable. Please try again later.', 'ai');
+        }
     }
 }
 
@@ -3049,21 +3074,47 @@ async function viewCVEDetails(cveId) {
 }
 
 async function analyzeCVE(cveId) {
+    // Navigate to analysis section first
+    showAnalysis();
+    
+    // Pre-fill the CVE ID in the analysis form
+    const cveInput = document.getElementById('analysis-cve-input') || document.getElementById('analysis-cve-id');
+    if (cveInput) {
+        cveInput.value = cveId;
+    }
+    
     showToast(`Starting analysis for ${cveId}...`, 'info');
     
     try {
         const api = new CVEPlatformAPI();
-        const result = await api.analyzeCVE({ cve_id: cveId });
         
-        if (result.success) {
+        // Show loading state in analysis results area
+        const resultsDiv = document.getElementById('analysis-results');
+        if (resultsDiv) {
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.innerHTML = `
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+                        <span class="text-gray-600">Analyzing ${cveId}...</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const result = await api.analyzeCVE({ cve_id: cveId, analysis_type: 'comprehensive' });
+        
+        if (result && (result.success !== false)) {
             showToast('CVE analysis completed', 'success');
-            displayAnalysisResults(result);
+            displayAnalysisResults(result, cveId);
         } else {
             showToast('CVE analysis failed', 'error');
+            displayAnalysisError('Analysis failed: ' + (result.error || 'Unknown error'), cveId);
         }
     } catch (error) {
         console.error('CVE analysis error:', error);
         showToast('CVE analysis failed: ' + error.message, 'error');
+        displayAnalysisError('Analysis failed: ' + error.message, cveId);
     }
 }
 
@@ -3516,57 +3567,22 @@ function loadSettingsData() {
 }
 
 function startAnalysis() {
-    showToast('Starting analysis...', 'info');
+    const cveInput = document.getElementById('analysis-cve-input') || document.getElementById('analysis-cve-id');
+    const analysisTypeSelect = document.getElementById('analysis-type');
     
-    // Create analysis modal or interface
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
-            <h3 class="text-lg font-semibold mb-4">Start Analysis</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Type</label>
-                    <select id="analysis-type" class="w-full p-2 border border-gray-300 rounded">
-                        <option value="cve">CVE Analysis</option>
-                        <option value="code">Code Analysis</option>
-                        <option value="risk">Risk Assessment</option>
-                        <option value="comprehensive">Comprehensive Analysis</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Target (CVE ID or Code)</label>
-                    <textarea id="analysis-target" class="w-full p-2 border border-gray-300 rounded" rows="3" placeholder="Enter CVE ID (e.g., CVE-2024-0001) or paste code to analyze"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Options</label>
-                    <div class="space-y-2">
-                        <label class="flex items-center">
-                            <input type="checkbox" class="mr-2" checked>
-                            <span class="text-sm">Generate detailed report</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" class="mr-2">
-                            <span class="text-sm">Include mitigation strategies</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" class="mr-2">
-                            <span class="text-sm">Generate proof of concept</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end space-x-3 mt-6">
-                <button onclick="this.closest('.fixed').remove()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
-                    Cancel
-                </button>
-                <button onclick="runAnalysis(); this.closest('.fixed').remove()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    Start Analysis
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
+    const cveId = cveInput?.value?.trim();
+    const analysisType = analysisTypeSelect?.value || 'comprehensive';
+    
+    if (!cveId) {
+        showToast('Please enter a CVE ID to analyze', 'warning');
+        if (cveInput) {
+            cveInput.focus();
+        }
+        return;
+    }
+    
+    // Call the analyzeCVE function directly
+    analyzeCVE(cveId);
 }
 
 function applyFilters() {
@@ -3637,25 +3653,339 @@ async function runAnalysis() {
     }
 }
 
-function displayAnalysisResults(result) {
-    // Show analysis results in the analysis section
-    showAnalysis();
+function displayAnalysisResults(result, cveId) {
+    const resultsDiv = document.getElementById('analysis-results');
+    if (!resultsDiv) return;
     
-    const resultsContainer = document.getElementById('analysis-results');
-    if (resultsContainer) {
-        resultsContainer.innerHTML = `
-            <div class="bg-white p-6 rounded-lg border">
-                <h3 class="text-lg font-semibold mb-4">Analysis Results</h3>
-                <div class="space-y-4">
-                    <div>
-                        <h4 class="font-medium text-gray-900">Summary</h4>
-                        <p class="text-sm text-gray-600 mt-1">${result.summary || 'Analysis completed successfully'}</p>
+    // Extract analysis data from the result
+    const analysis = result.analysis || result;
+    const modelUsed = result.model_used || 'AI Model';
+    const analysisType = result.analysis_type || 'Comprehensive';
+    
+    resultsDiv.innerHTML = `
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-900">AI Analysis Results</h3>
+                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    <i class="fas fa-check-circle mr-1"></i>Completed
+                </span>
+            </div>
+            
+            <!-- Analysis Header -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <div>
+                    <h4 class="font-medium text-gray-700">CVE ID</h4>
+                    <p class="text-lg font-semibold text-blue-600">${cveId || 'Unknown'}</p>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-700">Analysis Type</h4>
+                    <p class="text-gray-900">${analysisType}</p>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-700">AI Model</h4>
+                    <p class="text-gray-900">${modelUsed}</p>
+                </div>
+            </div>
+            
+            <!-- Analysis Content -->
+            <div class="space-y-6">
+                ${formatAnalysisContent(analysis)}
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex space-x-3 pt-6 border-t">
+                <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    <i class="fas fa-download mr-2"></i>Export Report
+                </button>
+                <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
+                </button>
+                <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    <i class="fas fa-code mr-2"></i>Generate PoC
+                </button>
+            </div>
+        </div>
+    `;
+    resultsDiv.classList.remove('hidden');
+}
+
+function displayAnalysisError(errorMessage, cveId) {
+    const resultsDiv = document.getElementById('analysis-results');
+    if (!resultsDiv) return;
+    
+    resultsDiv.innerHTML = `
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-exclamation-triangle text-red-500 text-xl mr-3"></i>
+                <h3 class="text-lg font-semibold text-gray-900">Analysis Failed</h3>
+            </div>
+            
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p class="text-red-700">${errorMessage}</p>
+            </div>
+            
+            <div class="space-y-3">
+                <h4 class="font-medium text-gray-900">Troubleshooting Steps:</h4>
+                <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                    <li>Verify that the CVE ID "${cveId}" is valid</li>
+                    <li>Check if the AI service is running and available</li>
+                    <li>Ensure you have proper authentication</li>
+                    <li>Try importing the CVE to local database first</li>
+                </ul>
+            </div>
+            
+            <div class="flex space-x-3 pt-4 border-t">
+                <button onclick="importCVE('${cveId}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    <i class="fas fa-download mr-2"></i>Import CVE First
+                </button>
+                <button onclick="analyzeCVE('${cveId}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    <i class="fas fa-redo mr-2"></i>Retry Analysis
+                </button>
+            </div>
+        </div>
+    `;
+    resultsDiv.classList.remove('hidden');
+}
+
+function formatAnalysisContent(analysis) {
+    if (typeof analysis === 'string') {
+        return `
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 mb-3">Analysis Summary</h4>
+                <div class="prose max-w-none text-gray-700">
+                    ${analysis.replace(/\n/g, '<br>')}
+                </div>
+            </div>
+        `;
+    }
+    
+    if (typeof analysis === 'object' && analysis !== null) {
+        let content = '';
+        
+        // Vulnerability Summary
+        if (analysis.vulnerability_summary) {
+            content += `
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="font-medium text-blue-900 mb-3">
+                        <i class="fas fa-shield-alt mr-2"></i>Vulnerability Summary
+                    </h4>
+                    <p class="text-blue-800">${analysis.vulnerability_summary}</p>
+                </div>
+            `;
+        }
+        
+        // Severity Assessment
+        if (analysis.severity_assessment) {
+            const severity = analysis.severity_assessment;
+            content += `
+                <div class="bg-red-50 rounded-lg p-4">
+                    <h4 class="font-medium text-red-900 mb-3">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Severity Assessment
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-sm text-red-700">CVSS Score:</span>
+                            <span class="font-semibold text-red-900">${severity.cvss_score || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-red-700">AI Risk Score:</span>
+                            <span class="font-semibold text-red-900">${severity.ai_risk_score || 'N/A'}/10</span>
+                        </div>
                     </div>
-                    <div>
-                        <h4 class="font-medium text-gray-900">Details</h4>
-                        <pre class="text-sm text-gray-600 mt-1 bg-gray-50 p-3 rounded overflow-auto">${JSON.stringify(result, null, 2)}</pre>
+                    ${severity.severity_justification ? `<p class="text-red-800 mt-2">${severity.severity_justification}</p>` : ''}
+                </div>
+            `;
+        }
+        
+        // Attack Vectors
+        if (analysis.attack_vectors && analysis.attack_vectors.length > 0) {
+            content += `
+                <div class="bg-orange-50 rounded-lg p-4">
+                    <h4 class="font-medium text-orange-900 mb-3">
+                        <i class="fas fa-crosshairs mr-2"></i>Attack Vectors
+                    </h4>
+                    <div class="space-y-2">
+                        ${analysis.attack_vectors.map(vector => `
+                            <div class="bg-white rounded p-3 border border-orange-200">
+                                <h5 class="font-medium text-orange-900">${vector.vector || vector}</h5>
+                                ${vector.description ? `<p class="text-sm text-orange-700 mt-1">${vector.description}</p>` : ''}
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
+            `;
+        }
+        
+        // Exploitation Analysis
+        if (analysis.exploitation_analysis) {
+            const exploit = analysis.exploitation_analysis;
+            content += `
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <h4 class="font-medium text-yellow-900 mb-3">
+                        <i class="fas fa-bug mr-2"></i>Exploitation Analysis
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-sm text-yellow-700">Likelihood:</span>
+                            <span class="font-semibold text-yellow-900">${exploit.likelihood || 'Unknown'}</span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-yellow-700">Complexity:</span>
+                            <span class="font-semibold text-yellow-900">${exploit.complexity || 'Unknown'}</span>
+                        </div>
+                    </div>
+                    ${exploit.prerequisites ? `<p class="text-yellow-800 mt-2"><strong>Prerequisites:</strong> ${exploit.prerequisites}</p>` : ''}
+                </div>
+            `;
+        }
+        
+        // If no structured content, show raw JSON
+        if (!content) {
+            content = `
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 mb-3">Raw Analysis Data</h4>
+                    <pre class="text-sm text-gray-700 overflow-auto">${JSON.stringify(analysis, null, 2)}</pre>
+                </div>
+            `;
+        }
+        
+        return content;
+    }
+    
+    return `
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-gray-600">No analysis data available</p>
+        </div>
+    `;
+}
+
+function exportAnalysisReport(cveId) {
+    showToast('Exporting analysis report...', 'info');
+    // Implementation for exporting analysis report
+}
+
+// Missing functions for advanced filters
+function toggleVulnType(type) {
+    const button = event.target;
+    const isActive = button.classList.contains('bg-blue-600');
+    
+    if (isActive) {
+        button.classList.remove('bg-blue-600', 'text-white');
+        button.classList.add('bg-gray-200', 'text-gray-700');
+    } else {
+        button.classList.remove('bg-gray-200', 'text-gray-700');
+        button.classList.add('bg-blue-600', 'text-white');
+    }
+    
+    updateFilterSummary();
+}
+
+function setDatePreset(preset) {
+    const startDate = document.getElementById('start-date');
+    const endDate = document.getElementById('end-date');
+    
+    if (!startDate || !endDate) return;
+    
+    const today = new Date();
+    const end = today.toISOString().split('T')[0];
+    let start;
+    
+    switch (preset) {
+        case '7d':
+            start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            break;
+        case '30d':
+            start = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            break;
+        case '90d':
+            start = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            break;
+        case '1y':
+            start = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            break;
+        default:
+            return;
+    }
+    
+    startDate.value = start;
+    endDate.value = end;
+    updateFilterSummary();
+}
+
+function updateCVSSRange() {
+    const minRange = document.getElementById('cvss-min');
+    const maxRange = document.getElementById('cvss-max');
+    const minValue = document.getElementById('cvss-min-value');
+    const maxValue = document.getElementById('cvss-max-value');
+    
+    if (minRange && maxRange && minValue && maxValue) {
+        minValue.textContent = minRange.value;
+        maxValue.textContent = maxRange.value;
+        
+        // Ensure min doesn't exceed max
+        if (parseFloat(minRange.value) > parseFloat(maxRange.value)) {
+            minRange.value = maxRange.value;
+            minValue.textContent = minRange.value;
+        }
+    }
+    
+    updateFilterSummary();
+}
+
+function updateFilterSummary() {
+    const summaryElement = document.getElementById('filter-summary');
+    if (!summaryElement) return;
+    
+    const filters = [];
+    
+    // Check vulnerability types
+    const vulnButtons = document.querySelectorAll('[onclick*="toggleVulnType"]');
+    const activeVulnTypes = Array.from(vulnButtons)
+        .filter(btn => btn.classList.contains('bg-blue-600'))
+        .map(btn => btn.textContent.trim());
+    
+    if (activeVulnTypes.length > 0) {
+        filters.push(`Types: ${activeVulnTypes.join(', ')}`);
+    }
+    
+    // Check CVSS range
+    const minCvss = document.getElementById('cvss-min')?.value;
+    const maxCvss = document.getElementById('cvss-max')?.value;
+    if (minCvss && maxCvss && (minCvss !== '0' || maxCvss !== '10')) {
+        filters.push(`CVSS: ${minCvss}-${maxCvss}`);
+    }
+    
+    // Check date range
+    const startDate = document.getElementById('start-date')?.value;
+    const endDate = document.getElementById('end-date')?.value;
+    if (startDate && endDate) {
+        filters.push(`Date: ${startDate} to ${endDate}`);
+    }
+    
+    // Check vendor/product
+    const vendor = document.getElementById('vendor-filter')?.value;
+    const product = document.getElementById('product-filter')?.value;
+    if (vendor) filters.push(`Vendor: ${vendor}`);
+    if (product) filters.push(`Product: ${product}`);
+    
+    // Check search type
+    const searchType = document.getElementById('search-type')?.value;
+    if (searchType && searchType !== 'both') {
+        filters.push(`Source: ${searchType.toUpperCase()}`);
+    }
+    
+    // Update summary
+    if (filters.length > 0) {
+        summaryElement.innerHTML = `
+            <div class="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                <i class="fas fa-filter mr-1"></i>
+                Active filters: ${filters.join(' • ')}
+            </div>
+        `;
+    } else {
+        summaryElement.innerHTML = `
+            <div class="text-sm text-gray-500">
+                No filters applied
             </div>
         `;
     }
