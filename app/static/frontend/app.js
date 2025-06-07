@@ -3563,9 +3563,16 @@ async function applyAdvancedFilters() {
         const searchTypeSelect = document.getElementById('search-type-filter');
         const resultsPerPageSelect = document.getElementById('results-per-page');
         
-        // Get selected severity levels from checkboxes or select
-        const severitySelect = document.getElementById('severity-filter');
-        const selectedSeverities = severitySelect?.value ? [severitySelect.value] : [];
+        // Get selected severity levels from checkboxes
+        const severityInputs = document.querySelectorAll('.severity-input:checked');
+        const selectedSeverities = Array.from(severityInputs).map(input => input.value);
+        
+        // Get selected vulnerability types
+        const selectedVulnTypes = [];
+        const vulnTypeButtons = document.querySelectorAll('.vuln-type-tag.selected');
+        vulnTypeButtons.forEach(button => {
+            selectedVulnTypes.push(button.dataset.type);
+        });
         
         const api = new CVEPlatformAPI();
         const searchParams = {
@@ -3581,6 +3588,11 @@ async function applyAdvancedFilters() {
         // Add filters if they exist and have values
         if (selectedSeverities.length > 0) {
             searchParams.severity = selectedSeverities;
+        }
+        
+        // Add vulnerability types filter
+        if (selectedVulnTypes.length > 0) {
+            searchParams.vulnerability_types = selectedVulnTypes;
         }
         if (cvssMinInput?.value) {
             searchParams.cvss_min = parseFloat(cvssMinInput.value);
@@ -3858,9 +3870,14 @@ async function runAnalysis() {
 
 function displayAnalysisResults(result, cveId) {
     const resultsDiv = document.getElementById('analysis-results');
-    const contentDiv = document.getElementById('analysis-content');
+    if (!resultsDiv) return;
     
-    if (!resultsDiv || !contentDiv) return;
+    // Get or create the content div
+    let contentDiv = document.getElementById('analysis-content');
+    if (!contentDiv) {
+        contentDiv = resultsDiv.querySelector('.bg-white.rounded-lg.shadow.p-6 #analysis-content') || 
+                    resultsDiv.querySelector('#analysis-content');
+    }
     
     // Parse structured analysis if available
     let structuredAnalysis = null;
@@ -3880,93 +3897,117 @@ function displayAnalysisResults(result, cveId) {
         console.warn('Could not parse structured analysis:', e);
     }
     
-    contentDiv.innerHTML = `
-        <div class="space-y-6">
-            <!-- Analysis Header -->
-            <div class="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-lg border border-red-200">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-900">🔍 Advanced CVE Analysis</h3>
-                        <p class="text-sm text-gray-600 mt-1">Elite-level vulnerability assessment for ${cveId || 'Unknown CVE'}</p>
+    // If contentDiv exists, update it; otherwise update the entire resultsDiv
+    if (contentDiv) {
+        contentDiv.innerHTML = `
+            <div class="space-y-6">
+                <!-- Analysis Header -->
+                <div class="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-lg border border-red-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">🔍 Advanced CVE Analysis</h3>
+                            <p class="text-sm text-gray-600 mt-1">Elite-level vulnerability assessment for ${cveId || 'Unknown CVE'}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                                <i class="fas fa-brain mr-1"></i>AI Expert Analysis
+                            </span>
+                            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                <i class="fas fa-check mr-1"></i>Complete
+                            </span>
+                        </div>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                            <i class="fas fa-brain mr-1"></i>AI Expert Analysis
-                        </span>
-                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                            <i class="fas fa-check mr-1"></i>Complete
-                        </span>
+                </div>
+                
+                <!-- Enhanced Quick Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-red-100 rounded-lg">
+                                <i class="fas fa-exclamation-triangle text-red-600"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-500">Risk Level</p>
+                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.confidence_assessment?.overall_confidence || structuredAnalysis?.risk_score || 'N/A'}/100</p>
+                            </div>
+                        </div>
                     </div>
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-lg">
+                                <i class="fas fa-crosshairs text-yellow-600"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-500">Exploitation</p>
+                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.exploitation_difficulty || 'Unknown'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i class="fas fa-clock text-purple-600"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-500">Time to Exploit</p>
+                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.time_to_exploit || 'Unknown'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i class="fas fa-user-ninja text-blue-600"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-500">Skill Level</p>
+                                <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.skill_level_required || 'Unknown'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                ${structuredAnalysis ? generateAdvancedAnalysisDisplay(structuredAnalysis) : generateBasicAnalysisDisplay(result)}
+                
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+                    <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        <i class="fas fa-download mr-2"></i>Export Report
+                    </button>
+                    <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
+                    </button>
+                    <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                        <i class="fas fa-code mr-2"></i>Generate PoC
+                    </button>
+                    <button onclick="shareAnalysis('${cveId || 'unknown'}')" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                        <i class="fas fa-share mr-2"></i>Share Analysis
+                    </button>
                 </div>
             </div>
-            
-            <!-- Enhanced Quick Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <div class="flex items-center">
-                        <div class="p-2 bg-red-100 rounded-lg">
-                            <i class="fas fa-exclamation-triangle text-red-600"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-500">Risk Level</p>
-                            <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.confidence_assessment?.overall_confidence || structuredAnalysis?.risk_score || 'N/A'}/100</p>
-                        </div>
-                    </div>
+        `;
+    } else {
+        // Fallback: display basic analysis in the results div
+        resultsDiv.innerHTML = `
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Analysis Results</h3>
+                <div class="prose max-w-none">
+                    ${result.response ? result.response.replace(/\n/g, '<br>') : JSON.stringify(result, null, 2)}
                 </div>
-                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <div class="flex items-center">
-                        <div class="p-2 bg-yellow-100 rounded-lg">
-                            <i class="fas fa-crosshairs text-yellow-600"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-500">Exploitation</p>
-                            <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.exploitation_difficulty || 'Unknown'}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <div class="flex items-center">
-                        <div class="p-2 bg-purple-100 rounded-lg">
-                            <i class="fas fa-clock text-purple-600"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-500">Time to Exploit</p>
-                            <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.time_to_exploit || 'Unknown'}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <div class="flex items-center">
-                        <div class="p-2 bg-blue-100 rounded-lg">
-                            <i class="fas fa-user-ninja text-blue-600"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-500">Skill Level</p>
-                            <p class="text-lg font-semibold text-gray-900">${structuredAnalysis?.exploitation_analysis?.skill_level_required || 'Unknown'}</p>
-                        </div>
-                    </div>
+                <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200 mt-4">
+                    <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        <i class="fas fa-download mr-2"></i>Export Report
+                    </button>
+                    <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
+                    </button>
+                    <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                        <i class="fas fa-code mr-2"></i>Generate PoC
+                    </button>
                 </div>
             </div>
-            
-            ${structuredAnalysis ? generateAdvancedAnalysisDisplay(structuredAnalysis) : generateBasicAnalysisDisplay(result)}
-            
-            <!-- Action Buttons -->
-            <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
-                <button onclick="exportAnalysisReport('${cveId || 'unknown'}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                    <i class="fas fa-download mr-2"></i>Export Report
-                </button>
-                <button onclick="addToWatchlist('${cveId || 'unknown'}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                    <i class="fas fa-bookmark mr-2"></i>Add to Watchlist
-                </button>
-                <button onclick="generatePoC('${cveId || 'unknown'}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-                    <i class="fas fa-code mr-2"></i>Generate PoC
-                </button>
-                <button onclick="shareAnalysis('${cveId || 'unknown'}')" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-                    <i class="fas fa-share mr-2"></i>Share Analysis
-                </button>
-            </div>
-        </div>
-    `;
+        `;
+    }
     resultsDiv.classList.remove('hidden');
 }
 
@@ -4127,69 +4168,165 @@ function exportAnalysisReport(cveId) {
 
 // Missing functions for advanced filters
 function toggleVulnType(type) {
-    const button = event.target;
-    const isActive = button.classList.contains('bg-blue-600');
+    const button = document.querySelector(`[data-type="${type}"]`) || event.target;
+    const isActive = button.classList.contains('selected');
     
     if (isActive) {
-        button.classList.remove('bg-blue-600', 'text-white');
+        button.classList.remove('selected', 'bg-blue-600', 'text-white');
         button.classList.add('bg-gray-200', 'text-gray-700');
     } else {
         button.classList.remove('bg-gray-200', 'text-gray-700');
-        button.classList.add('bg-blue-600', 'text-white');
+        button.classList.add('selected', 'bg-blue-600', 'text-white');
     }
     
     updateFilterSummary();
 }
 
-function setDatePreset(preset) {
-    const startDate = document.getElementById('start-date');
-    const endDate = document.getElementById('end-date');
-    
-    if (!startDate || !endDate) return;
-    
+function setDatePreset(field, days) {
     const today = new Date();
-    const end = today.toISOString().split('T')[0];
-    let start;
+    let targetDate;
     
-    switch (preset) {
-        case '7d':
-            start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-            break;
-        case '30d':
-            start = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-            break;
-        case '90d':
-            start = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-            break;
-        case '1y':
-            start = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-            break;
-        default:
-            return;
+    if (days === 0) {
+        targetDate = today;
+    } else {
+        targetDate = new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
     }
     
-    startDate.value = start;
-    endDate.value = end;
+    const dateString = targetDate.toISOString().split('T')[0];
+    
+    if (field === 'from') {
+        const fromInput = document.getElementById('date-from');
+        if (fromInput) fromInput.value = dateString;
+    } else if (field === 'to') {
+        const toInput = document.getElementById('date-to');
+        if (toInput) toInput.value = dateString;
+    }
+    
     updateFilterSummary();
 }
 
 function updateCVSSRange() {
-    const minRange = document.getElementById('cvss-min');
-    const maxRange = document.getElementById('cvss-max');
-    const minValue = document.getElementById('cvss-min-value');
-    const maxValue = document.getElementById('cvss-max-value');
+    const minSlider = document.getElementById('cvss-min-slider');
+    const maxSlider = document.getElementById('cvss-max-slider');
+    const minInput = document.getElementById('cvss-min');
+    const maxInput = document.getElementById('cvss-max');
+    const minLabel = document.getElementById('cvss-min-label');
+    const maxLabel = document.getElementById('cvss-max-label');
     
-    if (minRange && maxRange && minValue && maxValue) {
-        minValue.textContent = minRange.value;
-        maxValue.textContent = maxRange.value;
+    if (minSlider && maxSlider && minInput && maxInput && minLabel && maxLabel) {
+        // Update inputs from sliders
+        minInput.value = minSlider.value;
+        maxInput.value = maxSlider.value;
+        
+        // Update labels
+        minLabel.textContent = minSlider.value;
+        maxLabel.textContent = maxSlider.value;
         
         // Ensure min doesn't exceed max
-        if (parseFloat(minRange.value) > parseFloat(maxRange.value)) {
-            minRange.value = maxRange.value;
-            minValue.textContent = minRange.value;
+        if (parseFloat(minSlider.value) > parseFloat(maxSlider.value)) {
+            minSlider.value = maxSlider.value;
+            minInput.value = minSlider.value;
+            minLabel.textContent = minSlider.value;
+        }
+        
+        // Update visual range fill
+        const rangeFill = document.getElementById('cvss-range-fill');
+        if (rangeFill) {
+            const minPercent = (minSlider.value / 10) * 100;
+            const maxPercent = (maxSlider.value / 10) * 100;
+            rangeFill.style.left = minPercent + '%';
+            rangeFill.style.width = (maxPercent - minPercent) + '%';
         }
     }
     
+    updateFilterSummary();
+}
+
+function updateCVSSSliders() {
+    const minSlider = document.getElementById('cvss-min-slider');
+    const maxSlider = document.getElementById('cvss-max-slider');
+    const minInput = document.getElementById('cvss-min');
+    const maxInput = document.getElementById('cvss-max');
+    const minLabel = document.getElementById('cvss-min-label');
+    const maxLabel = document.getElementById('cvss-max-label');
+    
+    if (minSlider && maxSlider && minInput && maxInput && minLabel && maxLabel) {
+        // Update sliders from inputs
+        minSlider.value = minInput.value;
+        maxSlider.value = maxInput.value;
+        
+        // Update labels
+        minLabel.textContent = minInput.value;
+        maxLabel.textContent = maxInput.value;
+        
+        // Update visual range fill
+        const rangeFill = document.getElementById('cvss-range-fill');
+        if (rangeFill) {
+            const minPercent = (minInput.value / 10) * 100;
+            const maxPercent = (maxInput.value / 10) * 100;
+            rangeFill.style.left = minPercent + '%';
+            rangeFill.style.width = (maxPercent - minPercent) + '%';
+        }
+    }
+    
+    updateFilterSummary();
+}
+
+function showVendorSuggestions(value) {
+    const suggestionsDiv = document.getElementById('vendor-suggestions');
+    if (!suggestionsDiv || !value || value.length < 2) {
+        if (suggestionsDiv) suggestionsDiv.classList.add('hidden');
+        return;
+    }
+    
+    // Mock vendor suggestions - in real app, this would be an API call
+    const vendors = ['Microsoft', 'Adobe', 'Google', 'Apple', 'Oracle', 'IBM', 'Cisco', 'VMware', 'Red Hat', 'Mozilla'];
+    const filtered = vendors.filter(vendor => vendor.toLowerCase().includes(value.toLowerCase()));
+    
+    if (filtered.length > 0) {
+        suggestionsDiv.innerHTML = filtered.map(vendor => 
+            `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" onclick="selectVendor('${vendor}')">${vendor}</div>`
+        ).join('');
+        suggestionsDiv.classList.remove('hidden');
+    } else {
+        suggestionsDiv.classList.add('hidden');
+    }
+}
+
+function showProductSuggestions(value) {
+    const suggestionsDiv = document.getElementById('product-suggestions');
+    if (!suggestionsDiv || !value || value.length < 2) {
+        if (suggestionsDiv) suggestionsDiv.classList.add('hidden');
+        return;
+    }
+    
+    // Mock product suggestions - in real app, this would be an API call
+    const products = ['Windows', 'Chrome', 'Firefox', 'Office', 'Photoshop', 'Java', 'Flash Player', 'Reader', 'Safari', 'Edge'];
+    const filtered = products.filter(product => product.toLowerCase().includes(value.toLowerCase()));
+    
+    if (filtered.length > 0) {
+        suggestionsDiv.innerHTML = filtered.map(product => 
+            `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" onclick="selectProduct('${product}')">${product}</div>`
+        ).join('');
+        suggestionsDiv.classList.remove('hidden');
+    } else {
+        suggestionsDiv.classList.add('hidden');
+    }
+}
+
+function selectVendor(vendor) {
+    const vendorInput = document.getElementById('vendor-filter');
+    const suggestionsDiv = document.getElementById('vendor-suggestions');
+    if (vendorInput) vendorInput.value = vendor;
+    if (suggestionsDiv) suggestionsDiv.classList.add('hidden');
+    updateFilterSummary();
+}
+
+function selectProduct(product) {
+    const productInput = document.getElementById('product-filter');
+    const suggestionsDiv = document.getElementById('product-suggestions');
+    if (productInput) productInput.value = product;
+    if (suggestionsDiv) suggestionsDiv.classList.add('hidden');
     updateFilterSummary();
 }
 
@@ -4312,6 +4449,113 @@ function exportUserData() {
     URL.revokeObjectURL(url);
     
     showToast('User data exported successfully', 'success');
+}
+
+function saveSearchPreferences() {
+    try {
+        const searchPrefs = {
+            dateFrom: document.getElementById('date-from')?.value || '',
+            dateTo: document.getElementById('date-to')?.value || '',
+            cvssMin: document.getElementById('cvss-min')?.value || '0',
+            cvssMax: document.getElementById('cvss-max')?.value || '10',
+            vendor: document.getElementById('vendor-filter')?.value || '',
+            product: document.getElementById('product-filter')?.value || '',
+            searchType: document.getElementById('search-type-filter')?.value || 'both',
+            resultsPerPage: document.getElementById('results-per-page')?.value || '25',
+            severities: Array.from(document.querySelectorAll('.severity-input:checked')).map(input => input.value),
+            vulnTypes: Array.from(document.querySelectorAll('.vuln-type-tag.selected')).map(btn => btn.dataset.type)
+        };
+        
+        localStorage.setItem('cve_search_preferences', JSON.stringify(searchPrefs));
+        showToast('Search preferences saved', 'success');
+    } catch (error) {
+        console.error('Error saving search preferences:', error);
+        showToast('Failed to save search preferences', 'error');
+    }
+}
+
+function loadSearchPreferences() {
+    try {
+        const savedPrefs = localStorage.getItem('cve_search_preferences');
+        if (!savedPrefs) {
+            showToast('No saved search preferences found', 'info');
+            return;
+        }
+        
+        const prefs = JSON.parse(savedPrefs);
+        
+        // Load date range
+        if (prefs.dateFrom) {
+            const dateFromInput = document.getElementById('date-from');
+            if (dateFromInput) dateFromInput.value = prefs.dateFrom;
+        }
+        if (prefs.dateTo) {
+            const dateToInput = document.getElementById('date-to');
+            if (dateToInput) dateToInput.value = prefs.dateTo;
+        }
+        
+        // Load CVSS range
+        if (prefs.cvssMin) {
+            const cvssMinInput = document.getElementById('cvss-min');
+            const cvssMinSlider = document.getElementById('cvss-min-slider');
+            if (cvssMinInput) cvssMinInput.value = prefs.cvssMin;
+            if (cvssMinSlider) cvssMinSlider.value = prefs.cvssMin;
+        }
+        if (prefs.cvssMax) {
+            const cvssMaxInput = document.getElementById('cvss-max');
+            const cvssMaxSlider = document.getElementById('cvss-max-slider');
+            if (cvssMaxInput) cvssMaxInput.value = prefs.cvssMax;
+            if (cvssMaxSlider) cvssMaxSlider.value = prefs.cvssMax;
+        }
+        
+        // Load vendor/product
+        if (prefs.vendor) {
+            const vendorInput = document.getElementById('vendor-filter');
+            if (vendorInput) vendorInput.value = prefs.vendor;
+        }
+        if (prefs.product) {
+            const productInput = document.getElementById('product-filter');
+            if (productInput) productInput.value = prefs.product;
+        }
+        
+        // Load search options
+        if (prefs.searchType) {
+            const searchTypeSelect = document.getElementById('search-type-filter');
+            if (searchTypeSelect) searchTypeSelect.value = prefs.searchType;
+        }
+        if (prefs.resultsPerPage) {
+            const resultsSelect = document.getElementById('results-per-page');
+            if (resultsSelect) resultsSelect.value = prefs.resultsPerPage;
+        }
+        
+        // Load severity selections
+        if (prefs.severities && prefs.severities.length > 0) {
+            prefs.severities.forEach(severity => {
+                const severityInput = document.querySelector(`.severity-input[value="${severity}"]`);
+                if (severityInput) severityInput.checked = true;
+            });
+        }
+        
+        // Load vulnerability type selections
+        if (prefs.vulnTypes && prefs.vulnTypes.length > 0) {
+            prefs.vulnTypes.forEach(type => {
+                const vulnButton = document.querySelector(`[data-type="${type}"]`);
+                if (vulnButton) {
+                    vulnButton.classList.remove('bg-gray-200', 'text-gray-700');
+                    vulnButton.classList.add('selected', 'bg-blue-600', 'text-white');
+                }
+            });
+        }
+        
+        // Update UI elements
+        updateCVSSRange();
+        updateFilterSummary();
+        
+        showToast('Search preferences loaded', 'success');
+    } catch (error) {
+        console.error('Error loading search preferences:', error);
+        showToast('Failed to load search preferences', 'error');
+    }
 }
 
 // Initialize the application when DOM is loaded
