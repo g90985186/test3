@@ -376,6 +376,7 @@ async def analyze_cve_with_ai(
     auth: str = Depends(get_auth_dependency())
 ):
     """Analyze CVE using local AI models"""
+    cve_data = None
     try:
         analysis_id = str(uuid.uuid4())
         start_time = datetime.utcnow()
@@ -383,21 +384,27 @@ async def analyze_cve_with_ai(
         logger.info(f"Starting AI-powered CVE analysis for {request.cve_id}")
         
         # If CVE data not provided, fetch from our database or external API
-        cve_data = request.cve_data or await _fetch_cve_data(request.cve_id)
+        if request.cve_data:
+            cve_data = request.cve_data
+        else:
+            cve_data = await _fetch_cve_data(request.cve_id)
+        
+        if not cve_data:
+            raise ValueError(f"Could not fetch CVE data for {request.cve_id}")
         
         # Perform AI analysis
         ai_analysis = await ai_service.analyze_cve(cve_data)
         
         # Structure the analysis results
         results = {
-            "vulnerability_summary": cve_data.get("description", "No description available"),
+            "vulnerability_summary": cve_data.get("description", "No description available") if cve_data else "No CVE data available",
             "severity_assessment": {
-                "cvss_score": cve_data.get("severity", "Unknown"),
+                "cvss_score": cve_data.get("severity", "Unknown") if cve_data else "Unknown",
                 "ai_risk_score": ai_analysis.get("structured_analysis", {}).get("risk_score", 5),
                 "severity_justification": "AI-generated risk assessment based on vulnerability characteristics"
             },
             "attack_vectors": _extract_attack_vectors(ai_analysis.get("response", "")),
-            "affected_systems": cve_data.get("affected_products", []),
+            "affected_systems": cve_data.get("affected_products", []) if cve_data else [],
             "exploitation_analysis": {
                 "likelihood": ai_analysis.get("structured_analysis", {}).get("exploitation_likelihood", "Medium"),
                 "complexity": "Analysis pending",
@@ -438,9 +445,12 @@ async def analyze_cve_with_ai(
         logger.info(f"CVE analysis completed: {analysis_id} in {processing_time:.2f}s")
         return analysis_result
         
+    except ValueError as e:
+        logger.error(f"CVE data error for {request.cve_id}: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"CVE data not found: {str(e)}")
     except Exception as e:
-        logger.error(f"Error in CVE analysis: {str(e)}")
-        raise HTTPException(status_code=500, detail="CVE analysis failed")
+        logger.error(f"Error in CVE analysis for {request.cve_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"CVE analysis failed: {str(e)}")
 
 @router.post("/code/analyze", response_model=AnalysisResponse)
 async def analyze_code_with_ai(
@@ -563,16 +573,54 @@ async def initialize_ai_service(auth: str = Depends(get_admin_dependency())):
 # Helper functions
 async def _fetch_cve_data(cve_id: str) -> Dict[str, Any]:
     """Fetch CVE data from database or external API"""
-    # This would typically fetch from your CVE database
-    # For now, return mock data
-    return {
-        "id": cve_id,
-        "description": f"Security vulnerability {cve_id} - detailed analysis required",
-        "severity": "7.5",
-        "published_date": "2024-01-01",
-        "cwe": "CWE-79",
-        "affected_products": ["Example Software v1.0"]
-    }
+    try:
+        # Try to get from database first
+        from app.database import get_db
+        from app.models.cve import CVE
+        
+        # Get database session
+        db_gen = get_db()
+        db = next(db_gen)
+        
+        try:
+            cve = db.query(CVE).filter(CVE.cve_id == cve_id).first()
+            if cve:
+                return cve.to_dict()
+        finally:
+            db.close()
+        
+        # If not found in database, try NVD
+        from app.services.nvd_search_service import NVDSearchService
+        nvd_service = NVDSearchService()
+        nvd_result = await nvd_service.get_cve_details(cve_id)
+        
+        if nvd_result.get("success") and nvd_result.get("cve"):
+            return nvd_result["cve"]
+        
+        # Fallback to mock data if nothing found
+        logger.warning(f"CVE {cve_id} not found in database or NVD, using fallback data")
+        return {
+            "cve_id": cve_id,
+            "description": f"Security vulnerability {cve_id} - detailed analysis required",
+            "severity": "Unknown",
+            "cvss_v3_score": None,
+            "published_date": "Unknown",
+            "cwe_ids": [],
+            "affected_products": []
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching CVE data for {cve_id}: {str(e)}")
+        # Return minimal fallback data
+        return {
+            "cve_id": cve_id,
+            "description": f"CVE {cve_id} - data fetch failed",
+            "severity": "Unknown",
+            "cvss_v3_score": None,
+            "published_date": "Unknown",
+            "cwe_ids": [],
+            "affected_products": []
+        }
 
 def _extract_attack_vectors(ai_response: str) -> List[str]:
     """Extract attack vectors from AI response"""
