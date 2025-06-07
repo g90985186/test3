@@ -15,7 +15,7 @@ class OllamaModel(BaseAIModel):
         model_name: str,
         model_version: str,
         base_url: str = "http://localhost:11434",
-        timeout: int = 30
+        timeout: int = 120  # Increased timeout for code generation
     ):
         super().__init__(model_name, model_version)
         self.base_url = base_url.rstrip("/")
@@ -117,7 +117,9 @@ class OllamaModel(BaseAIModel):
             )
             
         except Exception as e:
-            logger.error(f"Error generating response with model {self.model_name}: {str(e)}")
+            logger.error(f"Error generating response with model {self.model_name}:{self.model_version}: {str(e)}")
+            logger.error(f"Full model identifier: {self.model_name}:{self.model_version}")
+            logger.error(f"Request details - Temperature: {temperature}, Max tokens: {max_tokens}")
             raise
     
     async def batch_generate(

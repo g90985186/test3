@@ -50,8 +50,8 @@ class POCGenerator:
             
             response = await model.generate(
                 prompt,
-                temperature=0.3,
-                max_tokens=4096,
+                temperature=0.1,  # Lower temperature for more deterministic code
+                max_tokens=8192,  # More tokens for longer code
                 **kwargs
             )
             
@@ -78,6 +78,8 @@ class POCGenerator:
             
         except Exception as e:
             logger.error(f"Error generating PoC for {cve_id}: {str(e)}")
+            logger.error(f"Model used: {model_name}")
+            logger.error(f"CVE details - Type: {vulnerability_type}, Component: {affected_component}")
             raise
     
     def _parse_response(self, response: str) -> tuple[str, Dict[str, str]]:
